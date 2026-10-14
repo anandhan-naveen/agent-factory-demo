@@ -1,0 +1,172 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "tests/ui/**"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "tests/ui/**"
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded runs on branches/PRs; never cancel a run on main mid-deploy.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests with coverage (80/80/80/75 gate)
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit dependencies (high and above)
+        run: npm audit --audit-level=high
+
+  e2e:
+    name: UI tests (Playwright, mocked API)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            tests/ui/package-lock.json
+
+      # playwright.config.ts builds the app with frontend/node_modules/.bin/vite into tests/ui/.app-dist
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install UI test dependencies
+        working-directory: tests/ui
+        run: npm ci
+
+      - name: Lint and typecheck tests
+        working-directory: tests/ui
+        run: |
+          npm run lint
+          npm run typecheck
+
+      - name: Install Chromium
+        working-directory: tests/ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mocked project
+        working-directory: tests/ui
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-playwright-report
+          path: |
+            tests/ui/playwright-report/
+            tests/ui/test-results/
+          retention-days: 14
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: [quality, e2e]
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Empty VITE_API_BASE_URL = demo mode (in-browser mock API). Set the repo variable
+      # API_BASE_URL (e.g. the Render URL) to point the Pages build at the live backend.
+      - name: Build for Pages
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [ -n "$VITE_API_BASE_URL" ]; then
+            echo "Building against API: $VITE_API_BASE_URL"
+          else
+            echo "API_BASE_URL variable not set: building in demo mode"
+          fi
+          npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

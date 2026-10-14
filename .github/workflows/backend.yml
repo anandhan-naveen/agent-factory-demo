@@ -1,0 +1,255 @@
+name: Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "tests/api/**"
+      - "docs/api/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "tests/api/**"
+      - "docs/api/**"
+      - ".github/workflows/backend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  JAVA_VERSION: "21"
+  NODE_VERSION: "22"
+
+jobs:
+  build:
+    name: Build, unit tests, JaCoCo, SpotBugs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      # verify = unit tests + JaCoCo report and 80 % line gate + SpotBugs/FindSecBugs check
+      - name: mvn verify
+        run: mvn -B -ntp verify
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/library-backend.jar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload surefire reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-surefire-reports
+          path: backend/target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload JaCoCo report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  api-tests:
+    name: API tests (Playwright against the jar)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      API_BASE_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests/api/package-lock.json
+
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: app
+
+      - name: Start API in the background
+        run: nohup java -jar app/library-backend.jar > app.log 2>&1 &
+
+      - name: Install API test dependencies
+        working-directory: tests/api
+        run: npm ci
+
+      - name: Lint and typecheck tests
+        working-directory: tests/api
+        run: |
+          npm run lint
+          npm run typecheck
+
+      - name: Wait for /actuator/health (60 s)
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS "$API_BASE_URL/actuator/health" | grep -q '"status":"UP"'; then
+              echo "API is UP"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::API did not report UP within 60 s"
+          exit 1
+
+      - name: Run API tests
+        working-directory: tests/api
+        run: npx playwright test
+
+      - name: Upload API test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-playwright-report
+          path: |
+            tests/api/playwright-report/
+            tests/api/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Print app log
+        if: ${{ failure() }}
+        run: cat app.log
+
+  docker:
+    name: Docker image (GHCR) + Trivy
+    needs: api-tests
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/library-api
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Pinned by commit SHA (v0.35.0): trivy-action tags were hijacked in March 2026.
+      # Note that `@0.28.0` does not exist; that release is tagged `v0.28.0`.
+      - name: Trivy scan (fail on CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        if: ${{ !cancelled() && hashFiles('trivy-results.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-library-api
+
+  deploy-render:
+    name: Deploy to Render
+    needs: docker
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: render
+      url: ${{ vars.BACKEND_URL }}
+    env:
+      # Secrets can't be used in a job-level `if`, so each step is gated on this env var.
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      BACKEND_URL: ${{ vars.BACKEND_URL }}
+    steps:
+      - name: Skip notice
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL == '' }}
+        run: echo "::notice::RENDER_DEPLOY_HOOK_URL secret is not set; skipping Render deploy."
+
+      - name: Trigger Render deploy hook
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL" -o /dev/null
+
+      - name: Wait for /actuator/health to be UP
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "::warning::BACKEND_URL variable is not set; cannot verify the deploy."
+            exit 0
+          fi
+          # Give Render time to start the new build before polling (the old instance stays UP meanwhile).
+          sleep 60
+          for _ in $(seq 1 60); do
+            if curl -fsS --max-time 10 "$BACKEND_URL/actuator/health" | grep -q '"status":"UP"'; then
+              echo "Backend is UP at $BACKEND_URL"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::$BACKEND_URL/actuator/health did not report UP within 15 minutes"
+          exit 1
+
+      - name: Smoke test GET /api/books
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' && env.BACKEND_URL != '' }}
+        run: |
+          status=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "$BACKEND_URL/api/books")
+          echo "GET /api/books -> $status"
+          test "$status" = "200"

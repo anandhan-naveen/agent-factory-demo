@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Library Catalog – Books API
+  version: 1.0.0
+  description: Contract shared by the frontend, backend and API-test agents. Change it here first.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/books:
+    get:
+      operationId: listBooks
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 200 }, description: Case-insensitive substring of title or author }
+        - { name: genre, in: query, schema: { $ref: '#/components/schemas/Genre' } }
+        - { name: available, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BookPage' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createBook
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BookInput' } } } }
+      responses:
+        '201':
+          description: Created
+          headers: { Location: { schema: { type: string }, description: /api/books/{id} } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/books/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getBook
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: updateBook
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BookInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteBook
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/books/{id}/availability:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: setAvailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [available], additionalProperties: false, properties: { available: { type: boolean } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+components:
+  responses:
+    Problem:
+      description: RFC 7807 problem
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Genre:
+      type: string
+      enum: [FICTION, NON_FICTION, SCIENCE, HISTORY, TECHNOLOGY, CHILDREN]
+    BookInput:
+      type: object
+      additionalProperties: false
+      required: [title, author, isbn, publishedYear, genre]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        author: { type: string, minLength: 1, maxLength: 120 }
+        isbn: { type: string, pattern: '^\d{13}$', description: ISBN-13 with valid checksum }
+        publishedYear: { type: integer, minimum: 1450, description: max = current year }
+        genre: { $ref: '#/components/schemas/Genre' }
+    Book:
+      allOf:
+        - $ref: '#/components/schemas/BookInput'
+        - type: object
+          required: [id, available, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            available: { type: boolean }
+            createdAt: { type: string, format: date-time }
+    BookPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Book' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string, example: Validation failed }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors: { type: object, additionalProperties: { type: string }, description: field → message (400 only) }

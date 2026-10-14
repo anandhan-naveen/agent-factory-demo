@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Known false positives for Spring applications:
+  - EI_EXPOSE_REP / EI_EXPOSE_REP2: constructor-injected Spring beans (repositories, Clock) and
+    JPA/record accessors are reported as "exposing internal representation".
+  - CT_CONSTRUCTOR_THROW: Spring-managed beans and records validating their arguments.
+  - SPRING_ENDPOINT (FindSecBugs): informational marker for every @RestController method.
+-->
+<FindBugsFilter>
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,CT_CONSTRUCTOR_THROW,SPRING_ENDPOINT"/>
+  </Match>
+</FindBugsFilter>

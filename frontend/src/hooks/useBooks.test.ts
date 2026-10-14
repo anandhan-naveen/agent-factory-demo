@@ -203,6 +203,102 @@ describe('useBooks', () => {
     expect(result.current.books?.some((b) => b.id === 'id-100')).toBe(false);
   });
 
+  it('R2-FE-02: loadMore is a no-op while page 0 of a new filter is loading, then pages from the new list', async () => {
+    const { api, calls } = controlledList();
+    const all = Array.from({ length: 150 }, (_, i) => book(`id-${String(i)}`, `T${String(i)}`));
+    const { result, rerender } = renderHook(({ filter }: { filter: BooksFilter }) => useBooks(api, filter), {
+      initialProps: { filter: { q: '' } },
+    });
+    await act(async () => {
+      call(calls, 0).reply.resolve(pageOf(all.slice(0, 100), 150));
+      await call(calls, 0).reply.promise;
+    });
+    rerender({ filter: { q: 'x' } });
+    expect(result.current.loading).toBe(true);
+    expect(calls).toHaveLength(2);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(calls).toHaveLength(2);
+    expect(result.current.loadingMore).toBe(false);
+
+    const matches = all.slice(0, 120);
+    await act(async () => {
+      call(calls, 1).reply.resolve(pageOf(matches.slice(0, 100), 120));
+      await call(calls, 1).reply.promise;
+    });
+    expect(result.current.totalItems).toBe(120);
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.loadMore();
+    });
+    expect(call(calls, 2).query).toMatchObject({ q: 'x', page: 1 });
+    await act(async () => {
+      call(calls, 2).reply.resolve({ ...pageOf(matches.slice(100), 120), page: 1 });
+      await pending;
+    });
+    expect(result.current.books?.map((b) => b.id)).toEqual(matches.map((b) => b.id));
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('R2-FE-02: a reload aborts an in-flight loadMore, whose late response is ignored', async () => {
+    const { api, calls } = controlledList();
+    const all = Array.from({ length: 101 }, (_, i) => book(`id-${String(i)}`, `T${String(i)}`));
+    const { result } = renderHook(() => useBooks(api, { q: '' }));
+    await act(async () => {
+      call(calls, 0).reply.resolve(pageOf(all.slice(0, 100), 101));
+      await call(calls, 0).reply.promise;
+    });
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.loadMore();
+    });
+    act(() => {
+      result.current.reload();
+    });
+    expect(call(calls, 1).signal?.aborted).toBe(true);
+    expect(result.current.loadingMore).toBe(false);
+    await act(async () => {
+      call(calls, 1).reply.resolve({ ...pageOf([call(all, 100)], 101), page: 1 });
+      await pending;
+    });
+    expect(result.current.books).toHaveLength(100);
+    await act(async () => {
+      call(calls, 2).reply.resolve(pageOf(all.slice(0, 100), 101));
+      await call(calls, 2).reply.promise;
+    });
+    expect(result.current.books).toHaveLength(100);
+    expect(result.current.hasMore).toBe(true);
+  });
+
+  it('R2-FE-02: loadMore keeps the local totalItems when a delete lands while it is in flight', async () => {
+    const { api, calls } = controlledList();
+    const all = Array.from({ length: 102 }, (_, i) => book(`id-${String(i)}`, `T${String(i)}`));
+    const { result } = renderHook(() => useBooks(api, { q: '' }));
+    await act(async () => {
+      call(calls, 0).reply.resolve(pageOf(all.slice(0, 100), 102));
+      await call(calls, 0).reply.promise;
+    });
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.loadMore();
+    });
+    act(() => {
+      result.current.removeBook('id-3');
+    });
+    expect(result.current.totalItems).toBe(101);
+    // The server's snapshot predates the delete and still counts 102.
+    await act(async () => {
+      call(calls, 1).reply.resolve({ ...pageOf(all.slice(100), 102), page: 1 });
+      await pending;
+    });
+    expect(result.current.books).toHaveLength(101);
+    expect(result.current.totalItems).toBe(101);
+    expect(result.current.hasMore).toBe(false);
+  });
+
   it('R-FE-01: a loadMore failure is rethrown; a filter change aborts it silently', async () => {
     const { api, calls } = controlledList();
     const all = Array.from({ length: 101 }, (_, i) => book(`id-${String(i)}`, `T${String(i)}`));

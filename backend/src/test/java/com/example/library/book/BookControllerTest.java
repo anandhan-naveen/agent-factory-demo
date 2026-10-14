@@ -329,6 +329,33 @@ class BookControllerTest {
     }
 
     @Test
+    void createRejectsNonStringScalarsForStringFields() throws Exception {
+        List<String[]> cases = List.of(
+                new String[] {"isbn", "\"9780743273565\"", "9780743273565"},
+                new String[] {"isbn", "\"9780743273565\"", "9.780743273565E12"},
+                new String[] {"title", "\"The Great Gatsby\"", "123"},
+                new String[] {"title", "\"The Great Gatsby\"", "1.5"},
+                new String[] {"author", "\"F. Scott Fitzgerald\"", "true"},
+                new String[] {"author", "\"F. Scott Fitzgerald\"", "false"});
+        for (String[] c : cases) {
+            String body = VALID_BODY.replace(c[1], c[2]);
+            ResultActions result = perform(json(post("/api/books"), body));
+            expectProblem(result, 400, "Validation failed");
+            result.andExpect(jsonPath("$.errors." + c[0]).value("has an invalid type or format"));
+        }
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void updateRejectsNumericIsbn() throws Exception {
+        ResultActions result = perform(json(put("/api/books/{id}", ID),
+                VALID_BODY.replace("\"9780743273565\"", "9780743273565")));
+        expectProblem(result, 400, "Validation failed");
+        result.andExpect(jsonPath("$.errors.isbn").value("has an invalid type or format"));
+        verifyNoInteractions(service);
+    }
+
+    @Test
     void createBlankIsbnReportsOnlyNotBlank() throws Exception {
         for (String isbn : List.of("", "   ")) {
             ResultActions result = perform(json(post("/api/books"), VALID_BODY.replace("9780743273565", isbn)));

@@ -11,10 +11,10 @@ Last run: 2026-10-14 (station `gate`). Each row says where the check runs perman
 | Types | `tsc --noEmit` (TypeScript 5.9.3) | same | 0 | 0 | same |
 | npm vulnerabilities | `npm audit` (npm 10.9.4) | frontend | 2 moderate, 0 high | 2 moderate (accepted, see below), 0 high | frontend.yml `--audit-level=high` |
 | | | tests/ui, tests/api | 0 | 0 | **new** steps in frontend.yml / backend.yml |
-| Maven vulnerabilities | GitHub Advisory DB (reviewed, commit `43d7804`, 2026-10-14) matched against the Boot 3.5.16 BOM versions | backend runtime + test classpath (69 artifacts) | 5 high + 6 moderate (Jackson), 1 moderate (log4j-api), 2 critical (spring-webmvc) | 2 critical (spring-webmvc, accepted, see below) | Trivy (backend.yml), dependency-review, Dependabot |
-| SAST | Semgrep 1.180.0, offline rules `.semgrep/critical.yml` (25 rules) | whole repo | 0 | 0 | **new** `semgrep` job: registry packs + `.semgrep/` |
+| Maven vulnerabilities | GitHub Advisory DB (reviewed, commit `43d7804`, 2026-10-14) matched against the Boot 3.5.16 BOM versions | backend runtime + test classpath (69 artifacts) | 5 high + 6 moderate (Jackson), 1 moderate (log4j-api), 2 critical (spring-webmvc) | 2 critical (spring-webmvc, accepted, see below) | Trivy (backend.yml; fails on fixable CRITICAL/HIGH only, `limit-severities-for-sarif: true`), dependency-review, Dependabot |
+| SAST | Semgrep 1.180.0, offline rules `.semgrep/critical.yml` (25 rules) | whole repo | 0 | 0 | **new** `semgrep` job (`pipx install semgrep==1.180.0`): registry packs + `.semgrep/` |
 | Secrets | gitleaks 8.28.0 (`git` over 4 commits + `dir` over the working tree) | whole repo | 0 | 0 | `gitleaks` job (existing) |
-| Workflows | actionlint 1.7.7 + shellcheck 0.11.0 | .github/workflows | 0 | 0 | **new** `workflow-lint` job |
+| Workflows | actionlint 1.7.7 + shellcheck 0.11.0 | .github/workflows | 0 | 0 | **new** `workflow-lint` job (tools installed with `pipx`, pinned) |
 | | zizmor 1.30.1 (`--offline`) | .github/workflows | 48 (38 unpinned-uses, 10 artipacked) | 0 | **new** `workflow-lint` job |
 | Dockerfile | hadolint 2.12.0 | backend/Dockerfile | 0 | 0 | Semgrep `p/dockerfile` + `.semgrep/` rules, Trivy |
 | Java bugs/smells | PMD 7.17.0, `quickstart` ruleset (maven-pmd-plugin 3.28.0) | backend main | 6 | 0 | **new**, `mvn verify` fails on any violation |

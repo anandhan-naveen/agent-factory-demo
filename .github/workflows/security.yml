@@ -91,8 +91,9 @@ jobs:
         with:
           persist-credentials: false
 
+      # pipx is preinstalled on ubuntu-latest and sidesteps PEP 668 (externally-managed system Python).
       - name: Install Semgrep
-        run: python3 -m pip install --user "semgrep==${SEMGREP_VERSION}"
+        run: pipx install "semgrep==${SEMGREP_VERSION}"
 
       # Registry rulesets + the repo's offline rules in .semgrep/ (critical patterns for this stack).
       - name: Scan
@@ -128,8 +129,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # pipx is preinstalled on ubuntu-latest and sidesteps PEP 668 (externally-managed system Python).
       - name: Install linters
-        run: python3 -m pip install --user "actionlint-py==${ACTIONLINT_PY_VERSION}" "shellcheck-py==${SHELLCHECK_PY_VERSION}" "zizmor==${ZIZMOR_VERSION}"
+        run: |
+          pipx install "actionlint-py==${ACTIONLINT_PY_VERSION}"
+          pipx install "shellcheck-py==${SHELLCHECK_PY_VERSION}"
+          pipx install "zizmor==${ZIZMOR_VERSION}"
 
       - name: actionlint (runs shellcheck on every run script)
         run: actionlint -color

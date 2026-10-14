@@ -45,7 +45,8 @@ function renderEmpty(filtersActive: boolean, clearFilters: () => void) {
   );
 }
 
-function renderLoadMore(shown: number, totalItems: number, loadingMore: boolean, onLoadMore: () => Promise<void>) {
+/** `blocked` is true while page 0 reloads (new filter) or another page is loading. */
+function renderLoadMore(shown: number, totalItems: number, loadingMore: boolean, blocked: boolean, onLoadMore: () => Promise<void>) {
   return (
     <div className="results__more">
       <p className="results__shown">
@@ -55,9 +56,9 @@ function renderLoadMore(shown: number, totalItems: number, loadingMore: boolean,
         type="button"
         className="button button--secondary"
         onClick={() => {
-          if (!loadingMore) void onLoadMore();
+          if (!blocked) void onLoadMore();
         }}
-        aria-disabled={loadingMore}
+        aria-disabled={blocked}
         data-testid="load-more"
       >
         {loadingMore ? 'Loading…' : 'Load more books'}
@@ -172,7 +173,7 @@ export function CatalogPage({ api, notify }: Readonly<Props>) {
           </p>
         ) : null}
         <BookList books={books} busy={loading} onToggleAvailability={handleToggle} onDelete={handleDelete} />
-        {hasMore ? renderLoadMore(books.length, totalItems, loadingMore, handleLoadMore) : null}
+        {hasMore ? renderLoadMore(books.length, totalItems, loadingMore, loading || loadingMore, handleLoadMore) : null}
       </>
     );
   }

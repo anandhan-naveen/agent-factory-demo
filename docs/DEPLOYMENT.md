@@ -9,8 +9,9 @@
 Deploy jobs run only on `main` (push or manual "Run workflow"), after every quality job before them has passed.
 
 The backend image follows one path: `docker` builds it into the runner's local Docker daemon (no push), Trivy scans
-that local image and fails the job on any fixable CRITICAL/HIGH finding, and only then are the same image's tags
-pushed to GHCR (no rebuild). `deploy-render` passes the pushed image's digest to Render, so Render runs exactly the
+that local image and fails the job on any fixable CRITICAL/HIGH finding (`severity: CRITICAL,HIGH`,
+`ignore-unfixed: true`, and `limit-severities-for-sarif: true` so the SARIF output keeps that filter; LOW/MEDIUM
+findings never fail the gate), and only then are the same image's tags pushed to GHCR (no rebuild). `deploy-render` passes the pushed image's digest to Render, so Render runs exactly the
 bytes Trivy scanned. Nothing is pushed, not even `latest`, when the scan fails.
 
 ## One-time setup

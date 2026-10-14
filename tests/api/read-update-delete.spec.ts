@@ -44,6 +44,8 @@ test.describe('PUT /api/books/{id}', () => {
     ['title of 201 chars', { title: 'x'.repeat(201) }, 'title'],
     ['author of 121 chars', { author: 'x'.repeat(121) }, 'author'],
     ['ISBN with bad checksum', { isbn: isbnWithBadChecksum() }, 'isbn'],
+    ['ISBN as a JSON number', { isbn: 9780306406157 }, 'isbn'],
+    ['author as a JSON boolean', { author: false }, 'author'],
     ['publishedYear next year', { publishedYear: CURRENT_YEAR + 1 }, 'publishedYear'],
     ['publishedYear 1449', { publishedYear: 1449 }, 'publishedYear'],
     ['unknown genre', { genre: 'POETRY' }, 'genre'],

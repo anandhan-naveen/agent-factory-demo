@@ -212,7 +212,7 @@ describe('CatalogPage', () => {
     await user.click(within(row).getByTestId('toggle-availability'));
     expect(await screen.findByTestId('toast')).toHaveTextContent('Couldn’t update “The Guns of August”');
     expect(within(row).getByTestId('availability-badge')).toHaveTextContent('Available');
-    expect(within(row).getByTestId('toggle-availability')).toBeEnabled();
+    expect(within(row).getByTestId('toggle-availability')).toHaveAttribute('aria-disabled', 'false');
   });
 
   it('FE-AC9: deletes after an inline confirm; cancel keeps the book', async () => {
@@ -291,6 +291,31 @@ describe('CatalogPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load more books');
     expect(screen.getAllByTestId('book-row')).toHaveLength(100);
     expect(screen.getByTestId('load-more')).toBeInTheDocument();
+  });
+
+  it('R2-FE-02: "Load more" is aria-disabled and inert while a new filter reloads page 0', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(manyBooks(101)));
+    const base = demoApi(storage);
+    const listBooks = vi.fn(base.listBooks.bind(base));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await rows();
+    expect(screen.getByTestId('load-more')).toHaveAttribute('aria-disabled', 'false');
+
+    const reloading = deferred<Awaited<ReturnType<typeof base.listBooks>>>();
+    listBooks.mockClear();
+    listBooks.mockImplementationOnce(() => reloading.promise);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Genre' }), 'FICTION');
+    expect(listBooks).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('load-more')).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(screen.getByTestId('load-more'));
+    expect(listBooks).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      reloading.resolve(await base.listBooks({ q: '', genre: 'FICTION', page: 0, size: 100 }));
+    });
+    expect(screen.getByTestId('load-more')).toHaveAttribute('aria-disabled', 'false');
   });
 
   it('R-FE-03: keeps focus on the toggle while the update is in flight and ignores repeat presses', async () => {

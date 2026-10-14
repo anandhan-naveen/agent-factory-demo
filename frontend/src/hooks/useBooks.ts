@@ -28,6 +28,8 @@ export function useBooks(api: BooksApi, filter: BooksFilter) {
   /** Bumped on every (re)load of page 0; a "load more" response from an older generation is discarded. */
   const generation = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  /** True while page 0 is (re)loading; read synchronously by loadMore, which must not run against a stale list. */
+  const pageZeroLoading = useRef(true);
   /** Ids removed locally in this generation, so a later page can't bring them back. */
   const removedIds = useRef(new Set<string>());
   const { q, genre, available } = filter;
@@ -36,9 +38,13 @@ export function useBooks(api: BooksApi, filter: BooksFilter) {
     const controller = new AbortController();
     generation.current += 1;
     removedIds.current = new Set();
-    moreController.current?.abort();
-    moreController.current = null;
-    setLoadingMore(false);
+    const cancelLoadMore = () => {
+      moreController.current?.abort();
+      moreController.current = null;
+      setLoadingMore(false);
+    };
+    cancelLoadMore();
+    pageZeroLoading.current = true;
     const seqAtStart = mutationSeq.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     api.listBooks({ q, genre, available, page: 0, size: CATALOG_PAGE_SIZE }, controller.signal).then(
@@ -49,10 +55,15 @@ export function useBooks(api: BooksApi, filter: BooksFilter) {
           setAttempt((n) => n + 1);
           return;
         }
+        // Page 0 replaces the list: any "load more" still running was computed from the old one.
+        generation.current += 1;
+        cancelLoadMore();
+        pageZeroLoading.current = false;
         setState({ books: page.items, totalItems: page.totalItems, loading: false, error: null });
       },
       (error: unknown) => {
         if (controller.signal.aborted || isAbortError(error)) return;
+        pageZeroLoading.current = false;
         setState({ books: null, totalItems: 0, loading: false, error: error instanceof Error ? error : new Error('Unknown error') });
       },
     );
@@ -70,12 +81,14 @@ export function useBooks(api: BooksApi, filter: BooksFilter) {
   /**
    * Appends the next page. The page index is derived from how many books are loaded, and items
    * are merged by id, so local deletions (which shift server offsets) never skip or duplicate a book.
+   * It is a no-op while page 0 is loading: the loaded count would belong to the previous query.
    */
   const loadMore = useCallback(async (): Promise<void> => {
-    if (moreController.current) return;
+    if (moreController.current || pageZeroLoading.current) return;
     const controller = new AbortController();
     moreController.current = controller;
     const gen = generation.current;
+    const seqAtStart = mutationSeq.current;
     setLoadingMore(true);
     try {
       const page = await api.listBooks(
@@ -87,7 +100,10 @@ export function useBooks(api: BooksApi, filter: BooksFilter) {
         const current = s.books ?? [];
         const known = new Set(current.map((b) => b.id));
         const fresh = page.items.filter((b) => !known.has(b.id) && !removedIds.current.has(b.id));
-        return { ...s, books: [...current, ...fresh], totalItems: page.totalItems };
+        // A local toggle/delete since the request started already adjusted totalItems; the server's
+        // count may predate it, so only take it when nothing changed locally.
+        const totalItems = mutationSeq.current === seqAtStart ? page.totalItems : s.totalItems;
+        return { ...s, books: [...current, ...fresh], totalItems };
       });
     } catch (error) {
       if (controller.signal.aborted || isAbortError(error)) return;

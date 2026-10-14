@@ -10,8 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.library.book.BookRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,18 +24,40 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Full application context: seeded H2 database, real service, repository and error handling. */
+/**
+ * Full application context: seeded H2 database, real service, repository and error handling.
+ *
+ * <p>The context (and its database) is shared by every test. Any book a test creates is tracked in
+ * {@link #createdIds} and removed in {@link #deleteCreatedBooks()}, so a failing assertion never
+ * leaves extra rows behind for tests that count the seed data (R2-BE-02).
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 class LibraryApplicationTests {
 
     private final MockMvc mvc;
     private final ObjectMapper objectMapper;
+    private final BookRepository repository;
+    private final List<UUID> createdIds = new ArrayList<>();
 
     @Autowired
-    LibraryApplicationTests(MockMvc mvc, ObjectMapper objectMapper) {
+    LibraryApplicationTests(MockMvc mvc, ObjectMapper objectMapper, BookRepository repository) {
         this.mvc = mvc;
         this.objectMapper = objectMapper;
+        this.repository = repository;
+    }
+
+    /** Runs even when the test failed; deleting an id that is already gone is a no-op. */
+    @AfterEach
+    void deleteCreatedBooks() {
+        repository.deleteAllById(createdIds);
+        createdIds.clear();
+    }
+
+    private String track(JsonNode created) {
+        String id = created.get("id").asText();
+        createdIds.add(UUID.fromString(id));
+        return id;
     }
 
     @Test
@@ -70,8 +97,7 @@ class LibraryApplicationTests {
                 .andExpect(header().string("Location", containsString("/api/books/")))
                 .andExpect(jsonPath("$.available").value(true))
                 .andReturn().getResponse().getContentAsString();
-        JsonNode node = objectMapper.readTree(created);
-        String id = node.get("id").asText();
+        String id = track(objectMapper.readTree(created));
 
         mvc.perform(post("/api/books").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict())
@@ -113,7 +139,7 @@ class LibraryApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String id = created.get("id").asText();
+        String id = track(created);
         String createdAt = created.get("createdAt").asText();
 
         mvc.perform(get("/api/books/{id}", id))
@@ -135,6 +161,21 @@ class LibraryApplicationTests {
                         .content("{\"available\":2}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.available").exists());
+    }
+
+    /** R2-BE-01: the application's own ObjectMapper refuses numbers and booleans for string fields. */
+    @Test
+    void stringFieldsRejectNonStringScalarsInFullContext() throws Exception {
+        String body = """
+                {"title":"Refactoring","author":"Martin Fowler","isbn":9780134757599,"publishedYear":2018,"genre":"TECHNOLOGY"}
+                """;
+        mvc.perform(post("/api/books").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.isbn").value("has an invalid type or format"));
+        mvc.perform(post("/api/books").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("9780134757599", "\"9780134757599\"").replace("\"Martin Fowler\"", "true")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.author").value("has an invalid type or format"));
     }
 
     @Test

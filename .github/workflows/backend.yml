@@ -205,6 +205,8 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
+          # Without this, format: sarif drops the severity filter and any fixable LOW/MEDIUM fails the gate.
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           exit-code: "1"
 

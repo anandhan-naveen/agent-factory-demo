@@ -16,6 +16,9 @@ export class CatalogPage {
   readonly retry: Locator;
   readonly toast: Locator;
   readonly resultsHeading: Locator;
+  /** Always-mounted visually hidden live region announcing the result count / empty state. */
+  readonly resultsStatus: Locator;
+  readonly loadMore: Locator;
 
   constructor(readonly page: Page) {
     this.heading = page.getByRole('heading', { level: 1, name: 'Catalog' });
@@ -30,8 +33,11 @@ export class CatalogPage {
     this.clearFilters = page.getByRole('button', { name: 'Clear filters' });
     this.errorState = page.getByRole('alert').and(page.getByTestId('error-state'));
     this.retry = page.getByRole('button', { name: 'Try again' });
-    this.toast = page.getByRole('status').getByTestId('toast');
+    // The toast's message lives in a status (success) or alert (error) region; its dismiss button sits outside it.
+    this.toast = page.getByTestId('toast');
     this.resultsHeading = page.getByRole('heading', { level: 2 });
+    this.resultsStatus = page.getByRole('status').and(page.getByTestId('results-status'));
+    this.loadMore = page.getByRole('button', { name: 'Load more books' });
   }
 
   async goto(): Promise<void> {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,12 +20,14 @@ class BookRepositoryTest {
     private static final Instant NOW = Instant.parse("2026-10-14T09:00:00Z");
 
     private final BookRepository repository;
+    private final TestEntityManager entityManager;
 
     private Book gatsby;
 
     @Autowired
-    BookRepositoryTest(BookRepository repository) {
+    BookRepositoryTest(BookRepository repository, TestEntityManager entityManager) {
         this.repository = repository;
+        this.entityManager = entityManager;
     }
 
     @BeforeEach
@@ -133,5 +136,41 @@ class BookRepositoryTest {
         Book duplicate = new Book("Copy", "Someone", "9780743273565", 2000, Genre.FICTION, NOW);
         assertThatThrownBy(() -> repository.saveAndFlush(duplicate))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void createdAtSurvivesTheRoundTripExactly() {
+        Book book = new Book("Dune", "Frank Herbert", "9780441013593", 1965, Genre.FICTION,
+                Instant.parse("2026-10-14T09:00:00.123456789Z"));
+        Instant returnedOnCreate = repository.saveAndFlush(book).getCreatedAt();
+        entityManager.clear();
+
+        Instant reloaded = repository.findById(book.getId()).orElseThrow().getCreatedAt();
+
+        assertThat(reloaded).isEqualTo(returnedOnCreate).isEqualTo(Instant.parse("2026-10-14T09:00:00.123Z"));
+    }
+
+    /**
+     * R-BE-04: a PUT that loaded the row before a concurrent PATCH committed must not write back its stale
+     * {@code available} value. The concurrent PATCH is simulated with a native UPDATE behind Hibernate's back.
+     */
+    @Test
+    void updateDoesNotOverwriteAvailabilityChangedConcurrently() {
+        Book loadedByPut = repository.findById(gatsby.getId()).orElseThrow();
+        assertThat(loadedByPut.isAvailable()).isTrue();
+
+        entityManager.getEntityManager()
+                .createNativeQuery("UPDATE books SET available = FALSE WHERE id = :id")
+                .setParameter("id", gatsby.getId())
+                .executeUpdate();
+
+        loadedByPut.update("The Great Gatsby (Revised)", loadedByPut.getAuthor(), loadedByPut.getIsbn(),
+                loadedByPut.getPublishedYear(), loadedByPut.getGenre());
+        repository.saveAndFlush(loadedByPut);
+        entityManager.clear();
+
+        Book reloaded = repository.findById(gatsby.getId()).orElseThrow();
+        assertThat(reloaded.getTitle()).isEqualTo("The Great Gatsby (Revised)");
+        assertThat(reloaded.isAvailable()).isFalse();
     }
 }

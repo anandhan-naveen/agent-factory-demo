@@ -1,49 +1,78 @@
-import { useCallback, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { BooksApi } from '../api/client';
 import type { Book } from '../api/types';
 import { useBooks } from '../hooks/useBooks';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { BookList } from './BookList';
+import { wantsResultsFocus } from './catalogFocus';
 import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { Filters, type FilterValues } from './Filters';
+import type { ToastKind } from './Toast';
 
 interface Props {
   api: BooksApi;
-  notify: (message: string) => void;
+  notify: (message: string, kind?: ToastKind) => void;
 }
 
 const INITIAL_FILTERS: FilterValues = { search: '', genre: '', availableOnly: false };
+
+function booksLabel(n: number): string {
+  return `${String(n)} ${n === 1 ? 'book' : 'books'}`;
+}
 
 export function CatalogPage({ api, notify }: Props) {
   const [filters, setFilters] = useState<FilterValues>(INITIAL_FILTERS);
   const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const { books, loading, error, reload, replaceBook, removeBook } = useBooks(api, {
+  const { books, totalItems, hasMore, loading, loadingMore, error, reload, loadMore, replaceBook, removeBook } = useBooks(api, {
     q: debouncedSearch,
     genre: filters.genre === '' ? undefined : filters.genre,
     available: filters.availableOnly ? true : undefined,
   });
 
+  // Arriving from the add-book page (save or cancel): put focus on the results heading.
+  const focusOnArrival = wantsResultsFocus(location.state);
+  useEffect(() => {
+    if (!focusOnArrival) return;
+    resultsHeadingRef.current?.focus();
+    navigate(location.pathname, { replace: true, state: null });
+  }, [focusOnArrival, navigate, location.pathname]);
+
   const filtersActive = filters.search.trim() !== '' || filters.genre !== '' || filters.availableOnly;
 
   const clearFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
+    searchRef.current?.focus();
   }, []);
+
+  const retry = useCallback(() => {
+    reload();
+    resultsHeadingRef.current?.focus();
+  }, [reload]);
 
   const handleToggle = useCallback(
     async (book: Book) => {
       try {
         const updated = await api.setAvailability(book.id, !book.available);
-        replaceBook(updated);
+        if (filters.availableOnly && !updated.available) {
+          // The book no longer matches "Available only": drop it, and keep focus on the page.
+          removeBook(updated.id);
+          resultsHeadingRef.current?.focus();
+        } else {
+          replaceBook(updated);
+        }
         notify(`“${updated.title}” marked ${updated.available ? 'available' : 'on loan'}`);
       } catch {
-        notify(`Couldn’t update “${book.title}”. Please try again.`);
+        notify(`Couldn’t update “${book.title}”. Please try again.`, 'error');
       }
     },
-    [api, notify, replaceBook],
+    [api, notify, replaceBook, removeBook, filters.availableOnly],
   );
 
   const handleDelete = useCallback(
@@ -55,16 +84,31 @@ export function CatalogPage({ api, notify }: Props) {
         resultsHeadingRef.current?.focus();
         return true;
       } catch {
-        notify(`Couldn’t delete “${book.title}”. Please try again.`);
+        notify(`Couldn’t delete “${book.title}”. Please try again.`, 'error');
         return false;
       }
     },
     [api, notify, removeBook],
   );
 
+  const handleLoadMore = useCallback(async () => {
+    try {
+      await loadMore();
+    } catch {
+      notify('Couldn’t load more books. Please try again.', 'error');
+    }
+  }, [loadMore, notify]);
+
+  // Keep focus on the page when the "Load more" button disappears after the last page.
+  const hadMore = useRef(hasMore);
+  useEffect(() => {
+    if (hadMore.current && !hasMore && document.activeElement === document.body) resultsHeadingRef.current?.focus();
+    hadMore.current = hasMore;
+  }, [hasMore]);
+
   let content;
   if (error) {
-    content = <ErrorState message={error.message} onRetry={reload} />;
+    content = <ErrorState message={error.message} onRetry={retry} />;
   } else if (books === null) {
     content = (
       <div className="state state--loading" role="status" data-testid="loading">
@@ -95,11 +139,35 @@ export function CatalogPage({ api, notify }: Props) {
           </p>
         ) : null}
         <BookList books={books} busy={loading} onToggleAvailability={handleToggle} onDelete={handleDelete} />
+        {hasMore ? (
+          <div className="results__more">
+            <p className="results__shown">
+              Showing {String(books.length)} of {String(totalItems)}
+            </p>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => {
+                if (!loadingMore) void handleLoadMore();
+              }}
+              aria-disabled={loadingMore}
+              data-testid="load-more"
+            >
+              {loadingMore ? 'Loading…' : 'Load more books'}
+            </button>
+          </div>
+        ) : null}
       </>
     );
   }
 
-  const count = books?.length ?? 0;
+  // Always-mounted live region: announces the outcome of every search/filter change (WCAG 4.1.3).
+  let announcement = '';
+  if (!loading && !error && books !== null) {
+    if (books.length === 0) announcement = filtersActive ? 'No books match your filters' : 'The catalog is empty';
+    else if (hasMore) announcement = `${booksLabel(totalItems)} found, ${String(books.length)} shown`;
+    else announcement = `${booksLabel(totalItems)} found`;
+  }
 
   return (
     <section className="page" aria-labelledby="catalog-heading">
@@ -119,12 +187,12 @@ export function CatalogPage({ api, notify }: Props) {
         </Link>
       </header>
 
-      <Filters values={filters} onChange={setFilters} />
+      <Filters values={filters} onChange={setFilters} searchRef={searchRef} />
 
       <div className="results">
         <div className="results__bar">
           <h2 className="results__heading" ref={resultsHeadingRef} tabIndex={-1}>
-            {books === null ? 'Books' : `${String(count)} ${count === 1 ? 'book' : 'books'}`}
+            {books === null ? 'Books' : booksLabel(totalItems)}
           </h2>
           {filtersActive && books !== null && books.length > 0 ? (
             <button type="button" className="link-button" onClick={clearFilters}>
@@ -132,6 +200,9 @@ export function CatalogPage({ api, notify }: Props) {
             </button>
           ) : null}
         </div>
+        <p className="visually-hidden" role="status" aria-live="polite" data-testid="results-status">
+          {announcement}
+        </p>
         {content}
       </div>
     </section>

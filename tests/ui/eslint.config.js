@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 import playwright from 'eslint-plugin-playwright';
 
 export default tseslint.config(
-  { ignores: ['node_modules', '.app-dist', 'playwright-report', 'test-results', 'blob-report'] },
+  { ignores: ['node_modules', '.app-dist', '.app-dist-demo', 'playwright-report', 'test-results', 'blob-report'] },
   {
     files: ['**/*.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
@@ -15,7 +15,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['specs/**/*.ts'],
+    files: ['specs/**/*.ts', 'demo/**/*.ts'],
     ...playwright.configs['flat/recommended'],
     rules: {
       ...playwright.configs['flat/recommended'].rules,

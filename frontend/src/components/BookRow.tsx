@@ -30,6 +30,8 @@ export function BookRow({ book, onToggleAvailability, onDelete }: Props) {
   }
 
   async function handleToggle(): Promise<void> {
+    // aria-disabled (not `disabled`) keeps keyboard focus on the button while the request runs.
+    if (busy) return;
     setBusy(true);
     try {
       await onToggleAvailability(book);
@@ -39,6 +41,7 @@ export function BookRow({ book, onToggleAvailability, onDelete }: Props) {
   }
 
   async function handleConfirmDelete(): Promise<void> {
+    if (busy) return;
     setBusy(true);
     const deleted = await onDelete(book);
     if (!deleted) {
@@ -80,7 +83,7 @@ export function BookRow({ book, onToggleAvailability, onDelete }: Props) {
               type="button"
               className="button button--secondary"
               onClick={() => void handleToggle()}
-              disabled={busy}
+              aria-disabled={busy}
               aria-label={book.available ? `Mark ${book.title} as on loan` : `Mark ${book.title} as available`}
               data-testid="toggle-availability"
             >
@@ -90,9 +93,9 @@ export function BookRow({ book, onToggleAvailability, onDelete }: Props) {
               type="button"
               className="button button--ghost button--danger-text"
               onClick={() => {
-                setConfirming(true);
+                if (!busy) setConfirming(true);
               }}
-              disabled={busy}
+              aria-disabled={busy}
               ref={deleteRef}
               aria-label={`Delete ${book.title}`}
               data-testid="delete-book"

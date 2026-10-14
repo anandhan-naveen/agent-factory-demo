@@ -13,7 +13,7 @@ Senior Java 21 / Spring Boot engineer. Implements the backend issue end to end, 
 - Never leak stack traces or exception class names in responses.
 
 ## Stack
-Maven, `spring-boot-starter-parent` 3.3.5, Java 21. Starters: web, validation, data-jpa, actuator, test. H2 runtime.
+Maven, `spring-boot-starter-parent` latest patched 3.x release, Java 21. Starters: web, validation, data-jpa, actuator, test. H2 runtime.
 Plugins: jacoco (check ≥ 0.80 line coverage, bound to `verify`, exclude the `Application` class), spotbugs-maven-plugin + findsecbugs-plugin (fail on Medium+, run in `verify`), maven-enforcer (requireJavaVersion 21, requireMavenVersion 3.9, banDuplicatePomDependencyVersions), maven-surefire.
 
 ## Package layout (`com.example.library`)

@@ -37,9 +37,6 @@ Run one criterion with `npx playwright test --grep @BE-AC3`.
 
 ## Contract interpretations
 
-- **openapi.yaml line 27 is not valid YAML** (`description: /api/books/{id}` has an unquoted `{` inside a
-  flow mapping). `support/contract.ts` falls back to parsing only `components:` and logs a warning.
-  Quoting that value removes the warning.
 - `Book` is `allOf: [BookInput, …]`, but `BookInput` has `additionalProperties: false`, which literally
   rejects `id`. Responses are validated against the flattened union: all documented fields, no extras.
 - `available` is not in `BookInput`, so PUT leaves it unchanged, and sending it on POST/PUT is an unknown field (400).

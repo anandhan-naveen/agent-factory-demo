@@ -33,7 +33,8 @@ export function uniqueToken(): string {
   return `zq${randomUUID().replace(/-/g, '').slice(0, 10)}`;
 }
 
-export const CURRENT_YEAR = new Date().getFullYear();
+/** The backend validates publishedYear against the current year in UTC, so the tests do too. */
+export const CURRENT_YEAR = new Date().getUTCFullYear();
 
 export type Genre = 'FICTION' | 'NON_FICTION' | 'SCIENCE' | 'HISTORY' | 'TECHNOLOGY' | 'CHILDREN';
 

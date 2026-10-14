@@ -182,7 +182,6 @@ export function BookForm({ onSave, onCancel, now = () => new Date() }: Props) {
           error={errors.publishedYear}
           value={values.publishedYear}
           inputMode="numeric"
-          maxLength={4}
           autoComplete="off"
           onChange={(e) => {
             update('publishedYear', e.target.value);

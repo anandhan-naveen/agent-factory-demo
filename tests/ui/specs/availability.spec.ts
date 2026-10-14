@@ -50,4 +50,19 @@ test.describe('Availability toggle', () => {
     await expect(catalog.badge(book.title)).toHaveText('Available');
     await expect(catalog.toggle(book.title)).toBeEnabled();
   });
+
+  test('@FE-AC3 @FE-AC8 with "Available only" on, a book marked on loan drops out of the list', async ({ catalog, mockApi }) => {
+    const book = pick(mockApi.snapshot(), (b) => b.available);
+    const availableCount = mockApi.snapshot().filter((b) => b.available).length;
+    await catalog.open();
+    await catalog.availableOnly.check();
+    await expect(catalog.rows).toHaveCount(availableCount);
+
+    await catalog.toggle(book.title).click();
+    await expect(catalog.row(book.title)).toHaveCount(0);
+    await expect(catalog.rows).toHaveCount(availableCount - 1);
+    await expect(catalog.resultsHeading).toHaveText(`${String(availableCount - 1)} books`);
+    await expect(catalog.resultsHeading).toBeFocused();
+    await expect(catalog.toast).toContainText('marked on loan');
+  });
 });

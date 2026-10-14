@@ -59,6 +59,17 @@ test.describe('GET /api/books – paging and sorting', () => {
       await expectProblem(await request.get(BOOKS, { params }), 400);
     });
   }
+
+  test('@BE-AC1 a page whose row offset overflows a 32-bit int is a 400 on page, not a 500', async ({ request }) => {
+    // 21474837 * 100 > 2^31 - 1
+    const problem = await expectProblem(await request.get(BOOKS, { params: { page: 21474837, size: 100 } }), 400);
+    expect(problem.errors?.page).toBeTruthy();
+  });
+
+  test('@BE-AC1 the largest page whose offset fits is an empty 200 page', async ({ request }) => {
+    const page = await expectJson<BookPage>(await request.get(BOOKS, { params: { page: 21474836, size: 100 } }), 200, 'BookPage');
+    expect(page.items).toEqual([]);
+  });
 });
 
 test.describe('GET /api/books – search and filters', () => {

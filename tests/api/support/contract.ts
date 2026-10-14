@@ -16,20 +16,14 @@ interface OpenApiDoc {
 const specPath = fileURLToPath(new URL('../../../docs/api/openapi.yaml', import.meta.url));
 const specText = readFileSync(specPath, 'utf8');
 
-/**
- * Parse the whole contract. If the paths section has a YAML syntax error (e.g. an unquoted
- * `{id}` inside a flow mapping), fall back to the `components:` section, which is all the
- * response validators need, and say so loudly rather than failing every test.
- */
+/** Parse the whole contract; any YAML error fails the run instead of being worked around. */
 function loadContract(): OpenApiDoc {
   const full = parseDocument(specText);
-  if (full.errors.length === 0) return full.toJS() as OpenApiDoc;
-  const first = full.errors[0]?.message.split('\n')[0] ?? 'unknown error';
-  const start = specText.search(/^components:/m);
-  const components = start >= 0 ? parseDocument(specText.slice(start)) : undefined;
-  if (!components || components.errors.length > 0) throw new Error(`openapi.yaml is not valid YAML: ${first}`);
-  console.warn(`[api-tests] openapi.yaml is not valid YAML (${first}); validating against its components section only.`);
-  return components.toJS() as OpenApiDoc;
+  if (full.errors.length > 0) {
+    const first = full.errors[0]?.message.split('\n')[0] ?? 'unknown error';
+    throw new Error(`docs/api/openapi.yaml is not valid YAML: ${first}`);
+  }
+  return full.toJS() as OpenApiDoc;
 }
 
 const doc = loadContract();

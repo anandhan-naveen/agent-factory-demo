@@ -2,10 +2,17 @@
 services:
   - type: web
     name: library-api
-    runtime: docker
+    # Image-backed: Render runs the image CI built, scanned with Trivy and pushed to GHCR; it never rebuilds
+    # from the Dockerfile. Replace OWNER/REPO (lower case) before creating the Blueprint. Each CI deploy passes
+    # the scanned image's digest to the deploy hook (imgURL), so this tag is only the initial image.
+    runtime: image
+    image:
+      url: ghcr.io/OWNER/REPO/library-api:latest
+      # Private GHCR package: create a registry credential in Render and uncomment.
+      # creds:
+      #   fromRegistryCreds:
+      #     name: ghcr
     plan: free
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
     healthCheckPath: /actuator/health
     # Deploys are triggered by the Backend workflow (deploy hook) after CI passes.
     autoDeploy: false

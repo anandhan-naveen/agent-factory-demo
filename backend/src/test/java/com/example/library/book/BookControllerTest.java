@@ -35,11 +35,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -59,7 +59,7 @@ class BookControllerTest {
 
     private final MockMvc mvc;
 
-    @MockBean
+    @MockitoBean
     private BookService service;
 
     @Autowired
@@ -132,6 +132,25 @@ class BookControllerTest {
                 .andExpect(jsonPath("$.errors.size").exists())
                 .andExpect(jsonPath("$.errors.page").exists());
         verifyNoInteractions(service);
+    }
+
+    @Test
+    void listRejectsPageWhoseOffsetOverflowsInt() throws Exception {
+        // 21474837 * 100 = 2147483700 > Integer.MAX_VALUE: used to reach JPA and fail with 500 (R-BE-03).
+        expectProblem(perform(get("/api/books").param("page", "21474837").param("size", "100")), 400,
+                "Validation failed")
+                .andExpect(jsonPath("$.errors.page").value("is too large for the requested size"))
+                .andExpect(jsonPath("$.errors.size").doesNotExist());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void listAcceptsLargestPageWhoseOffsetFitsInt() throws Exception {
+        // 21474836 * 100 = 2147483600 <= Integer.MAX_VALUE
+        when(service.search(isNull(), isNull(), isNull(), eq(21474836), eq(100)))
+                .thenReturn(new BookPage(List.of(), 21474836, 100, 0, 0));
+
+        perform(get("/api/books").param("page", "21474836").param("size", "100")).andExpect(status().isOk());
     }
 
     @Test
@@ -294,6 +313,32 @@ class BookControllerTest {
     }
 
     @Test
+    void createRejectsYearAsString() throws Exception {
+        ResultActions result = perform(json(post("/api/books"), VALID_BODY.replace("1925", "\"1925\"")));
+        expectProblem(result, 400, "Validation failed");
+        result.andExpect(jsonPath("$.errors.publishedYear").value("has an invalid type or format"));
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void createRejectsFractionalYear() throws Exception {
+        ResultActions result = perform(json(post("/api/books"), VALID_BODY.replace("1925", "1925.7")));
+        expectProblem(result, 400, "Validation failed");
+        result.andExpect(jsonPath("$.errors.publishedYear").value("has an invalid type or format"));
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void createBlankIsbnReportsOnlyNotBlank() throws Exception {
+        for (String isbn : List.of("", "   ")) {
+            ResultActions result = perform(json(post("/api/books"), VALID_BODY.replace("9780743273565", isbn)));
+            expectProblem(result, 400, "Validation failed");
+            result.andExpect(jsonPath("$.errors.isbn").value("must not be blank"));
+        }
+        verifyNoInteractions(service);
+    }
+
+    @Test
     void createRejectsMalformedJson() throws Exception {
         expectProblem(perform(json(post("/api/books"), "{\"title\":")), 400, "Validation failed");
         verifyNoInteractions(service);
@@ -372,6 +417,17 @@ class BookControllerTest {
         ResultActions result = perform(json(patch("/api/books/{id}/availability", ID), "{}"));
         expectProblem(result, 400, "Validation failed");
         result.andExpect(jsonPath("$.errors.available").exists());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void patchAvailabilityRejectsNonBooleanScalars() throws Exception {
+        for (String value : List.of("2", "0", "1", "\"true\"", "1.5")) {
+            ResultActions result =
+                    perform(json(patch("/api/books/{id}/availability", ID), "{\"available\":" + value + "}"));
+            expectProblem(result, 400, "Validation failed");
+            result.andExpect(jsonPath("$.errors.available").value("has an invalid type or format"));
+        }
         verifyNoInteractions(service);
     }
 

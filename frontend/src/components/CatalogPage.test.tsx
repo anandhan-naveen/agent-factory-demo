@@ -2,7 +2,33 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/client';
 import { DEMO_STORAGE_KEY } from '../api/demoApi';
+import type { Book } from '../api/types';
 import { MemoryStorage, demoApi, renderApp, stubApi } from '../test/helpers';
+
+function manyBooks(n: number): Book[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `bulk-${String(i).padStart(3, '0')}`,
+    title: `Bulk Book ${String(i).padStart(3, '0')}`,
+    author: 'Bulk Author',
+    isbn: `978${String(i).padStart(10, '0')}`,
+    publishedYear: 2000,
+    genre: 'FICTION' as const,
+    available: true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+function resultsStatus(): HTMLElement {
+  return screen.getByTestId('results-status');
+}
 
 async function rows() {
   return screen.findAllByTestId('book-row');
@@ -144,8 +170,8 @@ describe('CatalogPage', () => {
       .mockRejectedValueOnce(new ApiError(503, 'Service Unavailable', {}, 'The catalog service is down.'));
     const { user } = renderApp(stubApi({ listBooks }, base));
 
-    const error = await screen.findByRole('alert');
-    expect(error).toHaveAttribute('data-testid', 'error-state');
+    const error = await screen.findByTestId('error-state');
+    expect(error).toHaveAttribute('role', 'alert');
     expect(error).toHaveTextContent('The catalog service is down.');
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await rows()).toHaveLength(8);
@@ -234,5 +260,186 @@ describe('CatalogPage', () => {
   it('redirects unknown routes to the catalog', async () => {
     renderApp(stubApi(), '/nowhere');
     expect(await rows()).toHaveLength(8);
+  });
+  it('R-FE-01: shows the total in the heading and loads further pages on demand', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(manyBooks(101)));
+    const { user } = renderApp(stubApi({}, demoApi(storage)));
+    expect(await rows()).toHaveLength(100);
+    expect(screen.getByRole('heading', { level: 2, name: '101 books' })).toBeInTheDocument();
+    expect(screen.getByText('Showing 100 of 101')).toBeInTheDocument();
+    expect(resultsStatus()).toHaveTextContent('101 books found, 100 shown');
+
+    await user.click(screen.getByRole('button', { name: 'Load more books' }));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('book-row')).toHaveLength(101);
+    });
+    expect(screen.queryByTestId('load-more')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: '101 books' })).toHaveFocus();
+    expect(resultsStatus()).toHaveTextContent(/^101 books found$/);
+  });
+
+  it('R-FE-01: reports a failed "load more"', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(manyBooks(101)));
+    const base = demoApi(storage);
+    const listBooks = vi.fn(base.listBooks.bind(base));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await rows();
+    listBooks.mockRejectedValueOnce(new ApiError(500, 'Boom'));
+    await user.click(screen.getByTestId('load-more'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load more books');
+    expect(screen.getAllByTestId('book-row')).toHaveLength(100);
+    expect(screen.getByTestId('load-more')).toBeInTheDocument();
+  });
+
+  it('R-FE-03: keeps focus on the toggle while the update is in flight and ignores repeat presses', async () => {
+    const base = demoApi();
+    const pending = deferred<Book>();
+    const setAvailability = vi.fn(() => pending.promise);
+    const { user } = renderApp(stubApi({ setAvailability }, base));
+    await rows();
+    const toggle = within(rowFor('The Guns of August')).getByTestId('toggle-availability');
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).not.toBeDisabled();
+    expect(toggle).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(setAvailability).toHaveBeenCalledTimes(1);
+
+    const book = (await base.listBooks({ q: 'Guns' })).items[0];
+    if (!book) throw new Error('seed missing');
+    await act(async () => {
+      pending.resolve({ ...book, available: false });
+      await pending.promise;
+    });
+    expect(within(rowFor('The Guns of August')).getByTestId('availability-badge')).toHaveTextContent('On loan');
+    expect(toggle).toHaveAttribute('aria-disabled', 'false');
+    expect(toggle).toHaveFocus();
+  });
+
+  it('R-FE-03: keeps focus on the confirm button while deleting', async () => {
+    const pending = deferred<undefined>();
+    const deleteBook = vi.fn(() => pending.promise);
+    const { user } = renderApp(stubApi({ deleteBook }));
+    await rows();
+    const row = rowFor('Where the Wild Things Are');
+    await user.click(within(row).getByTestId('delete-book'));
+    const confirm = within(row).getByTestId('confirm-delete');
+    await user.click(confirm);
+    expect(confirm).toHaveAttribute('aria-disabled', 'true');
+    expect(confirm).toHaveFocus();
+    await user.click(confirm);
+    await user.click(within(row).getByTestId('cancel-delete'));
+    await user.keyboard('{Escape}');
+    expect(deleteBook).toHaveBeenCalledTimes(1);
+    expect(within(row).getByTestId('confirm-delete')).toBeInTheDocument();
+    await act(async () => {
+      pending.resolve(undefined);
+      await pending.promise;
+    });
+    await waitFor(() => {
+      expect(screen.getAllByTestId('book-row')).toHaveLength(7);
+    });
+  });
+
+  it('R-FE-04: announces the result count and the empty state in a polite live region', async () => {
+    const { user } = renderApp(stubApi());
+    const status = resultsStatus();
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toBeEmptyDOMElement();
+    await rows();
+    expect(status).toHaveTextContent(/^8 books found$/);
+
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'zz-none');
+    await waitFor(() => {
+      expect(status).toHaveTextContent(/^No books match your filters$/);
+    });
+    expect(resultsStatus()).toBe(status);
+
+    await user.clear(screen.getByRole('searchbox', { name: 'Search' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'hawking');
+    await waitFor(() => {
+      expect(status).toHaveTextContent(/^1 book found$/);
+    });
+  });
+
+  it('R-FE-04: announces an empty catalog and stays silent while loading or on error', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(DEMO_STORAGE_KEY, '[]');
+    renderApp(stubApi({}, demoApi(storage)));
+    await screen.findByTestId('empty-state');
+    expect(resultsStatus()).toHaveTextContent('The catalog is empty');
+  });
+
+  it('R-FE-04: the live region is empty while the error state is shown', async () => {
+    renderApp(stubApi({ listBooks: () => Promise.reject(new ApiError(500, 'Boom')) }));
+    await screen.findByTestId('error-state');
+    expect(resultsStatus()).toBeEmptyDOMElement();
+  });
+
+  it('R-FE-05: Clear filters and Reset filters move focus to the search box', async () => {
+    const { user } = renderApp(stubApi());
+    await rows();
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'zz-none');
+    const empty = await screen.findByTestId('empty-state');
+    await user.click(within(empty).getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveFocus();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Genre' }), 'SCIENCE');
+    await waitFor(() => {
+      expect(screen.getAllByTestId('book-row')).toHaveLength(2);
+    });
+    await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveFocus();
+    expect(await rows()).toHaveLength(8);
+  });
+
+  it('R-FE-05: Try again moves focus to the results heading', async () => {
+    const base = demoApi();
+    const listBooks = vi.fn(base.listBooks.bind(base)).mockRejectedValueOnce(new ApiError(503, 'Down'));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(await rows()).toHaveLength(8);
+    expect(screen.getByRole('heading', { level: 2, name: '8 books' })).toHaveFocus();
+  });
+
+  it('R-FE-08: with "Available only" on, a book marked on loan leaves the list', async () => {
+    const base = demoApi();
+    const listBooks = vi.fn(base.listBooks.bind(base));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await rows();
+    await user.click(screen.getByRole('checkbox', { name: 'Available only' }));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('book-row')).toHaveLength(6);
+    });
+    const calls = listBooks.mock.calls.length;
+
+    await user.click(within(rowFor('The Guns of August')).getByTestId('toggle-availability'));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('book-row')).toHaveLength(5);
+    });
+    expect(screen.queryByRole('heading', { name: 'The Guns of August', level: 3 })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: '5 books' })).toHaveFocus();
+    expect(screen.getByTestId('toast')).toHaveTextContent('“The Guns of August” marked on loan');
+    expect(listBooks.mock.calls.length).toBe(calls);
+  });
+
+  it('R-FE-09: failures use an error toast in an alert', async () => {
+    const { user } = renderApp(stubApi({ setAvailability: () => Promise.reject(new ApiError(500, 'Boom')) }));
+    await rows();
+    await user.click(within(rowFor('The Guns of August')).getByTestId('toggle-availability'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t update “The Guns of August”');
+    expect(screen.getByTestId('toast')).toHaveAttribute('data-kind', 'error');
+  });
+
+  it('R-FE-10: the footer in http mode does not claim a live connection', async () => {
+    renderApp({ ...stubApi(), mode: 'http' });
+    await rows();
+    expect(screen.getByText('Live catalog: changes are saved to the catalog service.')).toBeInTheDocument();
+    expect(screen.queryByText(/Connected to/)).not.toBeInTheDocument();
   });
 });

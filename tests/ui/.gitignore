@@ -1,5 +1,6 @@
 node_modules/
 .app-dist/
+.app-dist-demo/
 playwright-report/
 test-results/
 blob-report/

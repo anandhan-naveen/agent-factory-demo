@@ -4,9 +4,14 @@
 |---|---|---|
 | Frontend (static SPA) | GitHub Pages: `https://<owner>.github.io/<repo>/` | `.github/workflows/frontend.yml` → `deploy-pages` |
 | Backend image | GHCR: `ghcr.io/<owner>/<repo>/library-api:{sha-xxxxxxx,latest}` | `.github/workflows/backend.yml` → `docker` |
-| Backend service | Render (free web service, Docker) | `render.yaml` + `.github/workflows/backend.yml` → `deploy-render` |
+| Backend service | Render (free web service, runs the GHCR image) | `render.yaml` + `.github/workflows/backend.yml` → `deploy-render` |
 
 Deploy jobs run only on `main` (push or manual "Run workflow"), after every quality job before them has passed.
+
+The backend image follows one path: `docker` builds it into the runner's local Docker daemon (no push), Trivy scans
+that local image and fails the job on any fixable CRITICAL/HIGH finding, and only then are the same image's tags
+pushed to GHCR (no rebuild). `deploy-render` passes the pushed image's digest to Render, so Render runs exactly the
+bytes Trivy scanned. Nothing is pushed, not even `latest`, when the scan fails.
 
 ## One-time setup
 
@@ -23,27 +28,34 @@ the live backend.
 ### 2. GHCR image visibility
 
 The first `docker` run creates the package `<repo>/library-api` under your account (Profile → Packages). It is
-private by default. To let anyone pull it (or to let Render pull it without credentials if you switch Render to an
-image deploy), open the package → **Package settings → Change visibility → Public**.
+private by default. Render pulls this image, so either open the package → **Package settings → Change visibility →
+Public**, or keep it private and give Render a registry credential (step 3).
 
 The job pushes with the built-in `GITHUB_TOKEN` (`packages: write`); no secret is needed.
 
 ### 3. Render (backend)
 
-1. In Render: **New → Blueprint**, connect this repository. Render reads `render.yaml` and creates the `library-api`
-   web service (Docker runtime, `backend/Dockerfile`, free plan, health check `/actuator/health`, `PORT=8080`).
-2. When prompted, set `APP_CORS_ALLOWED_ORIGINS` (see step 6).
-3. `autoDeploy` is off: deploys happen only when CI on `main` passes. In the service, open **Settings → Deploy Hook**
+1. Run the **Backend** workflow on `main` once so the image exists in GHCR (the `deploy-render` job skips itself
+   until the hook secret below is set).
+2. In `render.yaml`, replace `OWNER/REPO` in `image.url` with your lower-case `<owner>/<repo>`. For a private package,
+   create a registry credential in Render (**Settings → Registry credentials**, GHCR, a classic PAT with
+   `read:packages`) named `ghcr` and uncomment the `creds` block.
+3. In Render: **New → Blueprint**, connect this repository. Render reads `render.yaml` and creates the `library-api`
+   web service (image runtime, free plan, health check `/actuator/health`, `PORT=8080`). Render never builds the
+   Dockerfile itself.
+4. When prompted, set `APP_CORS_ALLOWED_ORIGINS` (see section 6, CORS).
+5. `autoDeploy` is off: deploys happen only when CI on `main` passes. In the service, open **Settings → Deploy Hook**
    and copy the URL.
-4. In GitHub, **Settings → Secrets and variables → Actions**:
+6. In GitHub, **Settings → Secrets and variables → Actions**:
    - Secret `RENDER_DEPLOY_HOOK_URL` = the deploy hook URL.
    - Variable `BACKEND_URL` = the service URL, e.g. `https://library-api-xxxx.onrender.com` (no trailing slash).
 
-`deploy-render` then calls the hook, polls `$BACKEND_URL/actuator/health` until `UP` (up to 15 min, free instances
-build and cold-start slowly), and smoke-tests `GET /api/books` → 200. Without the secret the job prints a notice and
+`deploy-render` then calls the hook with `imgURL=ghcr.io/<owner>/<repo>/library-api@sha256:…` (the scanned image's
+digest), polls `$BACKEND_URL/actuator/health` until `UP` (up to 15 min, free instances
+pull and cold-start slowly), and smoke-tests `GET /api/books` → 200. Without the secret the job prints a notice and
 does nothing. Without `BACKEND_URL` it triggers the deploy but skips verification.
 
-Note: the previous instance keeps answering `UP` while Render builds, so the health poll mainly proves the service is
+Note: the previous instance keeps answering `UP` while Render pulls and starts the new image, so the health poll mainly proves the service is
 reachable; check the Render dashboard for the new deploy's status. The free plan's H2 database is in-memory and is
 reseeded with 8 books on every restart.
 

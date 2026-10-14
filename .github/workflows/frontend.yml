@@ -70,7 +70,7 @@ jobs:
         run: npm audit --audit-level=high
 
   e2e:
-    name: UI tests (Playwright, mocked API)
+    name: UI tests (Playwright, mocked API + demo build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -103,9 +103,11 @@ jobs:
         working-directory: tests/ui
         run: npx playwright install --with-deps chromium
 
-      - name: Run mocked project
+      # chromium: full suite against the mocked API. demo: smoke subset against the demo-mode
+      # build that deploy-pages publishes (empty VITE_API_BASE_URL). One run builds and serves both.
+      - name: Run mocked and demo projects
         working-directory: tests/ui
-        run: npx playwright test --project=chromium
+        run: npx playwright test --project=chromium --project=demo
 
       - name: Upload Playwright report
         if: ${{ failure() }}

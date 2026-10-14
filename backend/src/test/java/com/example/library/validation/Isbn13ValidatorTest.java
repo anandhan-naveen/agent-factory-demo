@@ -41,9 +41,15 @@ class Isbn13ValidatorTest {
         assertThat(validator.isValid("97807432735650", null)).isFalse();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void treatsBlankAsValidSoThatOnlyNotBlankReportsIt(String isbn) {
+        assertThat(validator.isValid(isbn, null)).isTrue();
+    }
+
     @Test
-    void rejectsEmptyString() {
-        assertThat(validator.isValid("", null)).isFalse();
+    void checksumHelperRejectsEmptyString() {
+        assertThat(IsbnChecksum.isValid("")).isFalse();
     }
 
     @Test

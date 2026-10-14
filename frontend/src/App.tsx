@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import type { BooksApi } from './api/client';
 import { AddBookPage } from './components/AddBookPage';
 import { CatalogPage } from './components/CatalogPage';
-import { Toast, type ToastMessage } from './components/Toast';
+import { Toast, type ToastKind, type ToastMessage } from './components/Toast';
 
 interface Props {
   api: BooksApi;
@@ -14,9 +14,9 @@ let toastSeq = 0;
 export function App({ api }: Props) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
-  const notify = useCallback((text: string) => {
+  const notify = useCallback((text: string, kind: ToastKind = 'success') => {
     toastSeq += 1;
-    setToast({ id: toastSeq, text });
+    setToast({ id: toastSeq, text, kind });
   }, []);
 
   const dismiss = useCallback(() => {
@@ -60,7 +60,7 @@ export function App({ api }: Props) {
         </Routes>
       </main>
       <footer className="footer">
-        <p>{api.mode === 'demo' ? 'Demo mode · changes are saved in this browser only.' : 'Connected to the catalog service.'}</p>
+        <p>{api.mode === 'demo' ? 'Demo mode · changes are saved in this browser only.' : 'Live catalog: changes are saved to the catalog service.'}</p>
       </footer>
       <Toast toast={toast} onDismiss={dismiss} />
     </div>

@@ -147,7 +147,7 @@ jobs:
         run: cat app.log
 
   docker:
-    name: Docker image (GHCR) + Trivy
+    name: Docker image + Trivy, then push to GHCR
     needs: api-tests
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
@@ -156,16 +156,13 @@ jobs:
       contents: read
       packages: write
       security-events: write
+    outputs:
+      # Digest-pinned reference of the exact image Trivy scanned; deploy-render deploys this.
+      image: ${{ steps.push.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Image metadata
         id: meta
@@ -176,12 +173,14 @@ jobs:
             type=sha
             type=raw,value=latest
 
-      - name: Build and push
+      # Build into the local Docker daemon only. Nothing is pushed until Trivy has passed.
+      - name: Build (no push)
         uses: docker/build-push-action@v6
         with:
           context: backend
           file: backend/Dockerfile
-          push: true
+          load: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -189,7 +188,7 @@ jobs:
 
       # Pinned by commit SHA (v0.35.0): trivy-action tags were hijacked in March 2026.
       # Note that `@0.28.0` does not exist; that release is tagged `v0.28.0`.
-      - name: Trivy scan (fail on CRITICAL/HIGH)
+      - name: Trivy scan of the local image (fail on CRITICAL/HIGH)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -206,6 +205,26 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy-library-api
 
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Push the very image that was scanned (no rebuild), then record its registry digest.
+      - name: Push scanned image
+        id: push
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          SCANNED: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then docker push "$tag"; fi
+          done <<< "$IMAGE_TAGS"
+          ref=$(docker image inspect --format '{{index .RepoDigests 0}}' "$SCANNED")
+          echo "Pushed $ref"
+          echo "image=$ref" >> "$GITHUB_OUTPUT"
+
   deploy-render:
     name: Deploy to Render
     needs: docker
@@ -219,14 +238,20 @@ jobs:
       # Secrets can't be used in a job-level `if`, so each step is gated on this env var.
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
       BACKEND_URL: ${{ vars.BACKEND_URL }}
+      # The Trivy-scanned GHCR image, pinned by digest (render.yaml declares an image-backed service).
+      IMAGE: ${{ needs.docker.outputs.image }}
     steps:
       - name: Skip notice
         if: ${{ env.RENDER_DEPLOY_HOOK_URL == '' }}
         run: echo "::notice::RENDER_DEPLOY_HOOK_URL secret is not set; skipping Render deploy."
 
-      - name: Trigger Render deploy hook
+      - name: Trigger Render deploy hook with the scanned image
         if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL" -o /dev/null
+        run: |
+          test -n "$IMAGE" || { echo "::error::docker job did not report an image digest"; exit 1; }
+          echo "Deploying $IMAGE"
+          # imgURL tells an image-backed Render service exactly which image to deploy.
+          curl -fsS -X POST -G --data-urlencode "imgURL=$IMAGE" "$RENDER_DEPLOY_HOOK_URL" -o /dev/null
 
       - name: Wait for /actuator/health to be UP
         if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}

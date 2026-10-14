@@ -135,7 +135,10 @@ export class DemoBooksApi implements BooksApi {
     if (q.length > 200) throw new ApiError(400, 'Validation failed', { q: 'Search must be 200 characters or fewer' });
     const page = query.page ?? 0;
     const size = query.size ?? 20;
-    if (page < 0 || size < 1 || size > 100) throw new ApiError(400, 'Validation failed', { size: 'Size must be between 1 and 100' });
+    const paging: Record<string, string> = {};
+    if (page < 0) paging.page = 'Page must be 0 or greater';
+    if (size < 1 || size > 100) paging.size = 'Size must be between 1 and 100';
+    if (Object.keys(paging).length > 0) throw new ApiError(400, 'Validation failed', paging);
 
     const matches = this.books
       .filter((b) => q === '' || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q))

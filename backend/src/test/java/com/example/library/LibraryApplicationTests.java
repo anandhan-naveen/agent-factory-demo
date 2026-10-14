@@ -103,6 +103,40 @@ class LibraryApplicationTests {
                 .andExpect(jsonPath("$.title").value("Book not found"));
     }
 
+    /** R-BE-01: the createdAt returned by POST is the value every later read returns. */
+    @Test
+    void createdAtFromPostEqualsCreatedAtFromGet() throws Exception {
+        String body = """
+                {"title":"Dune","author":"Frank Herbert","isbn":"9780441013593","publishedYear":1965,"genre":"FICTION"}
+                """;
+        JsonNode created = objectMapper.readTree(mvc.perform(post("/api/books")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String id = created.get("id").asText();
+        String createdAt = created.get("createdAt").asText();
+
+        mvc.perform(get("/api/books/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdAt").value(createdAt));
+        mvc.perform(get("/api/books").param("q", "Frank Herbert"))
+                .andExpect(jsonPath("$.items[0].createdAt").value(createdAt));
+
+        mvc.perform(delete("/api/books/{id}", id)).andExpect(status().isNoContent());
+    }
+
+    /** R-BE-02: the application's own ObjectMapper (not just the test slice) refuses scalar coercion. */
+    @Test
+    void availabilityRejectsNumberInFullContext() throws Exception {
+        String id = objectMapper.readTree(mvc.perform(get("/api/books").param("size", "1"))
+                .andReturn().getResponse().getContentAsString()).get("items").get(0).get("id").asText();
+
+        mvc.perform(patch("/api/books/{id}/availability", id).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"available\":2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.available").exists());
+    }
+
     @Test
     void malformedIdIsNotFound() throws Exception {
         mvc.perform(get("/api/books/not-a-uuid"))

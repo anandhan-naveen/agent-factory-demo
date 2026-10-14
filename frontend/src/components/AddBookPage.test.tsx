@@ -23,6 +23,7 @@ describe('AddBookPage', () => {
     expect(heading).toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Catalog' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
   });
 
   it('FE-AC6: shows every error under its field and focuses the first', async () => {
@@ -65,9 +66,12 @@ describe('AddBookPage', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Catalog' })).toBeInTheDocument();
     expect(screen.getByTestId('toast')).toHaveTextContent('Book added');
+    // R-FE-05: focus lands on the results heading, not <body>.
+    expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
     await waitFor(() => {
       expect(screen.getAllByTestId('book-row')).toHaveLength(9);
     });
+    expect(screen.getByRole('heading', { level: 2, name: '9 books' })).toHaveFocus();
     const row = screen.getByRole('heading', { name: 'Dune', level: 3 }).closest('li');
     if (!row) throw new Error('row missing');
     expect(within(row).getByTestId('availability-badge')).toHaveTextContent('Available');
@@ -81,6 +85,24 @@ describe('AddBookPage', () => {
     expect(screen.getByTestId('field-isbn')).toHaveFocus();
     expect(screen.getByRole('heading', { level: 1, name: 'Add a book' })).toBeInTheDocument();
     expect(screen.getByTestId('save-book')).toBeEnabled();
+  });
+
+  it('R-FE-12: does not truncate the year, so pasted padding is accepted and long values are reported', async () => {
+    const { user } = renderApp(stubApi(), '/books/new');
+    const year = screen.getByLabelText('Published year');
+    expect(year).not.toHaveAttribute('maxLength');
+    await fill(user, { ...VALID, year: '19655' });
+    expect(year).toHaveValue('19655');
+    await user.click(screen.getByTestId('save-book'));
+    expect(screen.getByTestId('error-publishedYear')).toHaveTextContent('Enter a year between 1450 and');
+
+    await user.clear(year);
+    await user.click(year);
+    await user.paste(' 1965 ');
+    expect(year).toHaveValue(' 1965 ');
+    await user.click(screen.getByTestId('save-book'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Catalog' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Dune', level: 3 })).toBeInTheDocument();
   });
 
   it('maps server-side 400 field errors', async () => {

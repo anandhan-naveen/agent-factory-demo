@@ -69,13 +69,34 @@ test.describe('Accessibility (automatable part)', () => {
     await expect(page.getByRole('alert')).toContainText('We couldn’t load the catalog.');
   });
 
-  test('@FE-AC10 result changes are announced: empty state is a status message', async ({ page, catalog }) => {
-    // FINDINGS.md#F-01: WCAG 4.1.3 Status Messages. The empty state (and result count) is not in a live region.
-    test.fail(true, 'Known product bug F-01: empty state not exposed as role="status" (see tests/ui/FINDINGS.md#f-01)');
+  test('@FE-AC10 result changes are announced: empty state is a status message', async ({ page, catalog, data }) => {
+    // FINDINGS.md#F-01 (fixed): WCAG 4.1.3 Status Messages, result count and empty state are in a polite live region.
     await catalog.open();
+    await expect(catalog.resultsStatus).toHaveAttribute('aria-live', 'polite');
+    await expect(catalog.resultsStatus).toHaveText(`${String(data.books.length)} books found`);
     await catalog.searchFor('zz-no-such-book-zz');
     await expect(catalog.emptyState).toBeVisible();
     await expect(page.getByRole('status').filter({ hasText: 'No books match your filters' })).toBeVisible({ timeout: 2_000 });
+    await expect(catalog.resultsStatus).toHaveText('No books match your filters');
+  });
+
+  test('@FE-AC10 focus is kept on the page after Clear filters, Try again and saving a book', async ({ catalog, addBook, mockApi }) => {
+    await catalog.open();
+    await catalog.searchFor('zz-no-such-book-zz');
+    await catalog.clearFilters.click();
+    await expect(catalog.search).toBeFocused();
+
+    mockApi.failNext(500);
+    await catalog.page.reload();
+    await catalog.retry.click();
+    await expect(catalog.resultsHeading).toBeFocused();
+    await catalog.waitForSettled();
+
+    await catalog.addBookLink.click();
+    await addBook.fillBook(newBookInput());
+    await addBook.save.click();
+    await expect(catalog.heading).toBeVisible();
+    await expect(catalog.resultsHeading).toBeFocused();
   });
 
   test('@FE-AC10 catalog controls are keyboard reachable with a visible focus ring', async ({ page, catalog, data }) => {

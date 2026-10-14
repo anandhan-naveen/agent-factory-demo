@@ -17,5 +17,5 @@
     "noEmit": true
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", ".app-dist", "playwright-report", "test-results"]
+  "exclude": ["node_modules", ".app-dist", ".app-dist-demo", "playwright-report", "test-results"]
 }

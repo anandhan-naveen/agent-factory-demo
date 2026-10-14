@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { GENRES, type Genre } from '../api/types';
 import { GENRE_LABELS } from '../domain/genres';
 
@@ -10,9 +11,10 @@ export interface FilterValues {
 interface Props {
   values: FilterValues;
   onChange: (values: FilterValues) => void;
+  searchRef?: Ref<HTMLInputElement>;
 }
 
-export function Filters({ values, onChange }: Props) {
+export function Filters({ values, onChange, searchRef }: Props) {
   return (
     <div className="filters" role="search" aria-label="Filter the catalog">
       <div className="field filters__search">
@@ -26,6 +28,7 @@ export function Filters({ values, onChange }: Props) {
           </svg>
           <input
             id="catalog-search"
+            ref={searchRef}
             className="input input--search"
             type="search"
             placeholder="Title or author"

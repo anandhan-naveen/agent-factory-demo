@@ -72,6 +72,14 @@ describe('DemoBooksApi', () => {
   it('rejects out-of-range query parameters with 400', async () => {
     const { api } = make();
     expect((await catchError(api.listBooks({ size: 101 }))).status).toBe(400);
+    // R-FE-13: a negative page is reported under `page`, not `size`.
+    const negativePage = await catchError(api.listBooks({ page: -1 }));
+    expect(negativePage.status).toBe(400);
+    expect(negativePage.errors).toEqual({ page: 'Page must be 0 or greater' });
+    expect((await catchError(api.listBooks({ page: -1, size: 0 }))).errors).toEqual({
+      page: 'Page must be 0 or greater',
+      size: 'Size must be between 1 and 100',
+    });
     expect((await catchError(api.listBooks({ q: 'x'.repeat(201) }))).errors).toHaveProperty('q');
   });
 

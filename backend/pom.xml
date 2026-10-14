@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.3.5</version>
+    <version>3.5.16</version>
     <relativePath/>
   </parent>
 
@@ -19,6 +19,9 @@
 
   <properties>
     <java.version>21</java.version>
+    <!-- Boot 3.5.16 (last OSS 3.x) manages Tomcat 10.1.55, which is affected by CVE-2026-68525 (CVSS 9.1,
+         fixed in 10.1.58) and others fixed in 10.1.59. Pin the newest 10.1.x patch release. -->
+    <tomcat.version>10.1.60</tomcat.version>
     <jacoco.version>0.8.12</jacoco.version>
     <spotbugs-maven-plugin.version>4.8.6.4</spotbugs-maven-plugin.version>
     <findsecbugs.version>1.13.0</findsecbugs.version>

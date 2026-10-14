@@ -296,7 +296,8 @@ select {
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -312,7 +313,7 @@ select {
   color: #fff;
 }
 
-.button--primary:hover:not(:disabled) {
+.button--primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--green-900);
 }
 
@@ -328,7 +329,7 @@ select {
   color: var(--green-800);
 }
 
-.button--secondary:hover:not(:disabled) {
+.button--secondary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--green-100);
   border-color: var(--green-700);
 }
@@ -338,7 +339,7 @@ select {
   color: var(--ink-soft);
 }
 
-.button--ghost:hover:not(:disabled) {
+.button--ghost:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--paper-sunk);
   color: var(--ink);
 }
@@ -348,7 +349,7 @@ select {
   color: #fff;
 }
 
-.button--danger:hover:not(:disabled) {
+.button--danger:hover:not(:disabled, [aria-disabled='true']) {
   background: #8a2722;
 }
 
@@ -356,7 +357,7 @@ select {
   color: var(--red-700);
 }
 
-.button--danger-text:hover:not(:disabled) {
+.button--danger-text:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--red-50);
   color: var(--red-700);
 }
@@ -457,8 +458,9 @@ select {
 }
 
 .checkbox {
-  width: 20px;
-  height: 20px;
+  /* 24px target: WCAG 2.2 SC 2.5.8 Target Size (Minimum). */
+  width: 24px;
+  height: 24px;
   margin: 0;
   accent-color: var(--green-800);
   cursor: pointer;
@@ -556,13 +558,28 @@ select {
   transition: opacity 150ms ease;
 }
 
+.results__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding-top: 20px;
+}
+
+.results__shown {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
 .book-list[aria-busy='true'] {
   opacity: 0.6;
 }
 
 .book {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  /* Fixed status/actions tracks keep badges aligned across rows and stop the inline confirm shifting them. */
+  grid-template-columns: minmax(0, 1fr) 7.5rem 17rem;
   grid-template-areas: 'main status actions';
   align-items: center;
   gap: 12px 24px;
@@ -808,6 +825,21 @@ select {
   box-shadow: 0 10px 30px -10px rgb(0 0 0 / 45%);
   pointer-events: auto;
   animation: toast-in 180ms ease-out;
+}
+
+.toast--idle {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.toast--error {
+  background: #7d231e;
+}
+
+.toast--error .toast__icon {
+  color: #ffd2cc;
 }
 
 .toast__icon {

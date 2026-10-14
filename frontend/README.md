@@ -53,7 +53,8 @@ src/
 
 Stable `data-testid`s for Playwright (`tests/ui`): `search-input`, `genre-filter`, `available-only`, `book-list`,
 `book-row` (+ `data-book-id`), `book-title`, `availability-badge`, `toggle-availability`, `delete-book`, `confirm-delete`,
-`cancel-delete`, `add-book-button`, `empty-state`, `clear-filters`, `error-state`, `retry-button`, `loading`, `toast`,
+`cancel-delete`, `add-book-button`, `empty-state`, `clear-filters`, `error-state`, `retry-button`, `loading`, `toast` (+ `data-kind`),
+`results-status`, `load-more`,
 `demo-badge`; form: `field-title`, `field-author`, `field-isbn`, `field-year`, `field-genre`, `save-book`, `cancel-book`,
 `error-title|author|isbn|publishedYear|genre`. Prefer roles and labels; test ids are the fallback.
 

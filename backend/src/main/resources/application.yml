@@ -9,9 +9,6 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: create-drop
-  jackson:
-    deserialization:
-      fail-on-unknown-properties: true
   mvc:
     problemdetails:
       enabled: true

@@ -11,7 +11,7 @@ labels: [backend, user-story]
 
 ## Context
 
-- Tech: Java 21, Spring Boot 3.3, Maven, Spring Web, Spring Data JPA, Bean Validation, H2 (in-memory, seeded with sample books), Actuator.
+- Tech: Java 21, Spring Boot 3.x (latest patched release), Maven, Spring Web, Spring Data JPA, Bean Validation, H2 (in-memory, seeded with sample books), Actuator.
 - Contract (source of truth for FE and tests): `docs/api/openapi.yaml`.
 - Errors use RFC 7807 `application/problem+json` (Spring `ProblemDetail`).
 - CORS origins configured via `APP_CORS_ALLOWED_ORIGINS` (comma-separated). Default: `http://localhost:5173`.

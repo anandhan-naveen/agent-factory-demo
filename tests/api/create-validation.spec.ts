@@ -65,8 +65,11 @@ test.describe('POST /api/books – validation (400 problem+json)', () => {
     ['ISBN with hyphens', { isbn: '978-0-306-40615-7' }, 'isbn'],
     ['ISBN with letters', { isbn: '978030640615X' }, 'isbn'],
     ['ISBN-10', { isbn: '0306406152' }, 'isbn'],
+    ['empty ISBN', { isbn: '' }, 'isbn'],
     ['publishedYear 1449', { publishedYear: 1449 }, 'publishedYear'],
     ['publishedYear next year', { publishedYear: CURRENT_YEAR + 1 }, 'publishedYear'],
+    ['publishedYear as a numeric string', { publishedYear: '1999' }, 'publishedYear'],
+    ['publishedYear with a fraction', { publishedYear: 1999.7 }, 'publishedYear'],
     ['genre not in enum', { genre: 'POETRY' }, 'genre'],
     ['genre in lower case', { genre: 'fiction' }, 'genre'],
   ];

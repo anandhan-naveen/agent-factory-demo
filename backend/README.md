@@ -1,6 +1,6 @@
 # Library Catalog – Books API (backend)
 
-Spring Boot 3.3 / Java 21 REST API for the Library Catalog. The contract is
+Spring Boot 3.5 (3.5.16, Tomcat pinned to 10.1.60) / Java 21 REST API for the Library Catalog. The contract is
 [`docs/api/openapi.yaml`](../docs/api/openapi.yaml); the user story is
 [`issues/02-backend-books-api.md`](../issues/02-backend-books-api.md).
 

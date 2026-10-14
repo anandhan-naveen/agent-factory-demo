@@ -85,6 +85,18 @@ class BookServiceTest {
     }
 
     @Test
+    void createTruncatesCreationTimeToMillisSoItSurvivesTheDatabaseRoundTrip() {
+        Instant withNanos = Instant.parse("2026-10-14T09:00:00.123456789Z");
+        BookService nanoClockService = new BookService(repository, Clock.fixed(withNanos, ZoneOffset.UTC));
+        when(repository.existsByIsbn("9780743273565")).thenReturn(false);
+        when(repository.saveAndFlush(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookResponse response = nanoClockService.create(INPUT);
+
+        assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-10-14T09:00:00.123Z"));
+    }
+
+    @Test
     void createRejectsDuplicateIsbn() {
         when(repository.existsByIsbn("9780743273565")).thenReturn(true);
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { BooksApi } from '../api/client';
 import type { BookInput } from '../api/types';
 import { BookForm } from './BookForm';
+import { CATALOG_FOCUS_RESULTS } from './catalogFocus';
 
 interface Props {
   api: BooksApi;
@@ -21,7 +22,7 @@ export function AddBookPage({ api, notify, now }: Props) {
   async function handleSave(input: BookInput): Promise<void> {
     await api.createBook(input);
     notify('Book added');
-    navigate('/');
+    navigate('/', { state: CATALOG_FOCUS_RESULTS });
   }
 
   return (
@@ -41,7 +42,7 @@ export function AddBookPage({ api, notify, now }: Props) {
         <BookForm
           onSave={handleSave}
           onCancel={() => {
-            navigate('/');
+            navigate('/', { state: CATALOG_FOCUS_RESULTS });
           }}
           now={now}
         />

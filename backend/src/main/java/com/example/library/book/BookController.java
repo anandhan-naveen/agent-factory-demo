@@ -50,6 +50,10 @@ public class BookController {
         if (size < 1 || size > MAX_PAGE_SIZE) {
             errors.put("size", "must be between 1 and " + MAX_PAGE_SIZE);
         }
+        if (page >= 0 && size >= 1 && size <= MAX_PAGE_SIZE && (long) page * size > Integer.MAX_VALUE) {
+            // The row offset (page * size) must fit in an int for the JPA query; beyond that is a client error.
+            errors.put("page", "is too large for the requested size");
+        }
         if (q != null && q.length() > MAX_QUERY_LENGTH) {
             errors.put("q", "size must be at most " + MAX_QUERY_LENGTH);
         }

@@ -24,7 +24,7 @@ paths:
       responses:
         '201':
           description: Created
-          headers: { Location: { schema: { type: string }, description: /api/books/{id} } }
+          headers: { Location: { schema: { type: string }, description: '/api/books/{id}' } }
           content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } }
         '400': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }

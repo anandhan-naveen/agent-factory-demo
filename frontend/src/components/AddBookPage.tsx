@@ -11,7 +11,7 @@ interface Props {
   now?: () => Date;
 }
 
-export function AddBookPage({ api, notify, now }: Props) {
+export function AddBookPage({ api, notify, now }: Readonly<Props>) {
   const navigate = useNavigate();
   const headingRef = useRef<HTMLHeadingElement>(null);
 

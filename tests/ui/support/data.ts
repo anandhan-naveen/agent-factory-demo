@@ -13,6 +13,7 @@ export function isValidIsbn13(value: string): boolean {
 /** A random, checksum-valid ISBN-13 (978 prefix). */
 export function randomIsbn(): string {
   let body = '978';
+  // eslint-disable-next-line sonarjs/pseudo-random -- test-data ISBN digits only; not security-sensitive.
   while (body.length < 12) body += String(Math.floor(Math.random() * 10));
   return body + String(isbn13CheckDigit(body));
 }

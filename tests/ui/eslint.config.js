@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import playwright from 'eslint-plugin-playwright';
+import sonarjs from 'eslint-plugin-sonarjs';
 
 export default tseslint.config(
   { ignores: ['node_modules', '.app-dist', '.app-dist-demo', 'playwright-report', 'test-results', 'blob-report'] },
@@ -29,4 +30,6 @@ export default tseslint.config(
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
+  // Sonar-class code smells and bugs (quality gate), applied to every linted file.
+  sonarjs.configs.recommended,
 );

@@ -64,13 +64,26 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
   );
 });
 
+/** Maps a failed save to field-level errors (409 duplicate ISBN, 400 field errors), or null for anything else. */
+function fieldErrorsFromSaveError(error: unknown): FieldErrors | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.status === 409) return { isbn: DUPLICATE_ISBN_MESSAGE };
+  if (error.status !== 400) return null;
+  const next: FieldErrors = {};
+  for (const field of BOOK_FIELDS) {
+    const message = error.errors[field];
+    if (message) next[field] = message;
+  }
+  return firstInvalidField(next) ? next : null;
+}
+
 interface Props {
   onSave: (input: BookInput) => Promise<void>;
   onCancel: () => void;
   now?: () => Date;
 }
 
-export function BookForm({ onSave, onCancel, now = () => new Date() }: Props) {
+export function BookForm({ onSave, onCancel, now = () => new Date() }: Readonly<Props>) {
   const [values, setValues] = useState<FormValues>(EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -106,23 +119,11 @@ export function BookForm({ onSave, onCancel, now = () => new Date() }: Props) {
       await onSave(toBookInput(values));
     } catch (error) {
       setSaving(false);
-      if (error instanceof ApiError && error.status === 409) {
-        const next: FieldErrors = { isbn: DUPLICATE_ISBN_MESSAGE };
+      const next = fieldErrorsFromSaveError(error);
+      if (next) {
         setErrors(next);
         focusFirst(next);
         return;
-      }
-      if (error instanceof ApiError && error.status === 400) {
-        const next: FieldErrors = {};
-        for (const field of BOOK_FIELDS) {
-          const message = error.errors[field];
-          if (message) next[field] = message;
-        }
-        if (firstInvalidField(next)) {
-          setErrors(next);
-          focusFirst(next);
-          return;
-        }
       }
       setFormError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
     }

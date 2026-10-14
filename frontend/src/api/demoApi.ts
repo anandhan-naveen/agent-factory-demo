@@ -47,6 +47,7 @@ function defaultStorage(): Storage | null {
 
 function defaultId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // eslint-disable-next-line sonarjs/pseudo-random -- demo-mode record id fallback only; not a security token.
   return `demo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 

@@ -14,7 +14,7 @@ interface Props {
   searchRef?: Ref<HTMLInputElement>;
 }
 
-export function Filters({ values, onChange, searchRef }: Props) {
+export function Filters({ values, onChange, searchRef }: Readonly<Props>) {
   return (
     <div className="filters" role="search" aria-label="Filter the catalog">
       <div className="field filters__search">

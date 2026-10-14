@@ -2,11 +2,14 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import playwright from 'eslint-plugin-playwright';
+import sonarjs from 'eslint-plugin-sonarjs';
 
 export default tseslint.config(
   { ignores: ['node_modules/', 'playwright-report/', 'test-results/'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
+  // Sonar-class code smells and bugs (quality gate).
+  sonarjs.configs.recommended,
   {
     languageOptions: {
       globals: globals.node,

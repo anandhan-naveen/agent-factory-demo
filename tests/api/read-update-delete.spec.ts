@@ -79,7 +79,7 @@ test.describe('DELETE /api/books/{id}', () => {
     const book = await books.create();
     const res = await request.delete(bookUrl(book.id));
     expect(res.status()).toBe(204);
-    expect((await res.body()).length).toBe(0);
+    expect(await res.body()).toHaveLength(0);
     await expectProblem(await request.get(bookUrl(book.id)), 404, 'Book not found');
   });
 

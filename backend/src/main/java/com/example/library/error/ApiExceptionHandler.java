@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +111,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         String name = ex instanceof MethodArgumentTypeMismatchException mismatch
                 ? mismatch.getName()
-                : (ex.getPropertyName() == null ? "parameter" : ex.getPropertyName());
+                : Objects.requireNonNullElse(ex.getPropertyName(), "parameter");
         Class<?> requiredType = ex.getRequiredType();
         String message;
         if (requiredType != null && requiredType.isEnum()) {

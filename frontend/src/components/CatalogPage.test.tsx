@@ -197,7 +197,7 @@ describe('CatalogPage', () => {
     });
     expect(within(row).getByTestId('toggle-availability')).toHaveTextContent('Mark available');
     expect(await screen.findByTestId('toast')).toHaveTextContent('“To Kill a Mockingbird” marked on loan');
-    expect(listBooks.mock.calls.length).toBe(calls);
+    expect(listBooks.mock.calls).toHaveLength(calls);
 
     await user.click(within(row).getByTestId('toggle-availability'));
     await waitFor(() => {
@@ -425,7 +425,7 @@ describe('CatalogPage', () => {
     expect(screen.queryByRole('heading', { name: 'The Guns of August', level: 3 })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: '5 books' })).toHaveFocus();
     expect(screen.getByTestId('toast')).toHaveTextContent('“The Guns of August” marked on loan');
-    expect(listBooks.mock.calls.length).toBe(calls);
+    expect(listBooks.mock.calls).toHaveLength(calls);
   });
 
   it('R-FE-09: failures use an error toast in an alert', async () => {

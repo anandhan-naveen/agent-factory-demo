@@ -91,6 +91,7 @@ public class BookController {
     }
 
     /** A malformed id cannot identify any book, so it is reported as 404 rather than 400/500. */
+    @SuppressWarnings("PMD.PreserveStackTrace") // expected input error; the parse trace has no diagnostic value
     static UUID parseId(String id) {
         try {
             return UUID.fromString(id);

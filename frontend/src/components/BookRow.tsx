@@ -10,7 +10,7 @@ interface Props {
   onDelete: (book: Book) => Promise<boolean>;
 }
 
-export function BookRow({ book, onToggleAvailability, onDelete }: Props) {
+export function BookRow({ book, onToggleAvailability, onDelete }: Readonly<Props>) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const deleteRef = useRef<HTMLButtonElement>(null);

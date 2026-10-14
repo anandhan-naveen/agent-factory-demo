@@ -16,9 +16,6 @@ public class PublishedYearValidator implements ConstraintValidator<PublishedYear
 
     @Override
     public boolean isValid(Integer value, ConstraintValidatorContext context) {
-        if (value == null) {
-            return true;
-        }
-        return value <= Year.now(clock).getValue();
+        return value == null || value <= Year.now(clock).getValue();
     }
 }

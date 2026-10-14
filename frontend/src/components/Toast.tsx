@@ -18,7 +18,7 @@ interface Props {
  * Success messages go into an always-mounted polite status region; errors into a role="alert"
  * element. Only the message text is inside the live region: the dismiss button stays outside.
  */
-export function Toast({ toast, onDismiss, durationMs = 4000 }: Props) {
+export function Toast({ toast, onDismiss, durationMs = 4000 }: Readonly<Props>) {
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(onDismiss, durationMs);

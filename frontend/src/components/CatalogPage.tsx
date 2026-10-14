@@ -22,7 +22,51 @@ function booksLabel(n: number): string {
   return `${String(n)} ${n === 1 ? 'book' : 'books'}`;
 }
 
-export function CatalogPage({ api, notify }: Props) {
+/** Text for the always-mounted live region once a load has settled (empty while loading or on error). */
+function resultsAnnouncement(books: Book[] | null, totalItems: number, hasMore: boolean, filtersActive: boolean): string {
+  if (books === null) return '';
+  if (books.length === 0) return filtersActive ? 'No books match your filters' : 'The catalog is empty';
+  if (hasMore) return `${booksLabel(totalItems)} found, ${String(books.length)} shown`;
+  return `${booksLabel(totalItems)} found`;
+}
+
+function renderEmpty(filtersActive: boolean, clearFilters: () => void) {
+  return filtersActive ? (
+    <EmptyState title="No books match your filters">
+      <p className="state__detail">Try a different search, or widen the genre and availability filters.</p>
+      <button type="button" className="button button--secondary" onClick={clearFilters} data-testid="clear-filters">
+        Clear filters
+      </button>
+    </EmptyState>
+  ) : (
+    <EmptyState title="The catalog is empty">
+      <p className="state__detail">Add the first book to start your catalog.</p>
+    </EmptyState>
+  );
+}
+
+function renderLoadMore(shown: number, totalItems: number, loadingMore: boolean, onLoadMore: () => Promise<void>) {
+  return (
+    <div className="results__more">
+      <p className="results__shown">
+        Showing {String(shown)} of {String(totalItems)}
+      </p>
+      <button
+        type="button"
+        className="button button--secondary"
+        onClick={() => {
+          if (!loadingMore) void onLoadMore();
+        }}
+        aria-disabled={loadingMore}
+        data-testid="load-more"
+      >
+        {loadingMore ? 'Loading…' : 'Load more books'}
+      </button>
+    </div>
+  );
+}
+
+export function CatalogPage({ api, notify }: Readonly<Props>) {
   const [filters, setFilters] = useState<FilterValues>(INITIAL_FILTERS);
   const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -117,18 +161,7 @@ export function CatalogPage({ api, notify }: Props) {
       </div>
     );
   } else if (books.length === 0) {
-    content = filtersActive ? (
-      <EmptyState title="No books match your filters">
-        <p className="state__detail">Try a different search, or widen the genre and availability filters.</p>
-        <button type="button" className="button button--secondary" onClick={clearFilters} data-testid="clear-filters">
-          Clear filters
-        </button>
-      </EmptyState>
-    ) : (
-      <EmptyState title="The catalog is empty">
-        <p className="state__detail">Add the first book to start your catalog.</p>
-      </EmptyState>
-    );
+    content = renderEmpty(filtersActive, clearFilters);
   } else {
     content = (
       <>
@@ -139,35 +172,13 @@ export function CatalogPage({ api, notify }: Props) {
           </p>
         ) : null}
         <BookList books={books} busy={loading} onToggleAvailability={handleToggle} onDelete={handleDelete} />
-        {hasMore ? (
-          <div className="results__more">
-            <p className="results__shown">
-              Showing {String(books.length)} of {String(totalItems)}
-            </p>
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={() => {
-                if (!loadingMore) void handleLoadMore();
-              }}
-              aria-disabled={loadingMore}
-              data-testid="load-more"
-            >
-              {loadingMore ? 'Loading…' : 'Load more books'}
-            </button>
-          </div>
-        ) : null}
+        {hasMore ? renderLoadMore(books.length, totalItems, loadingMore, handleLoadMore) : null}
       </>
     );
   }
 
   // Always-mounted live region: announces the outcome of every search/filter change (WCAG 4.1.3).
-  let announcement = '';
-  if (!loading && !error && books !== null) {
-    if (books.length === 0) announcement = filtersActive ? 'No books match your filters' : 'The catalog is empty';
-    else if (hasMore) announcement = `${booksLabel(totalItems)} found, ${String(books.length)} shown`;
-    else announcement = `${booksLabel(totalItems)} found`;
-  }
+  const announcement = loading || error ? '' : resultsAnnouncement(books, totalItems, hasMore, filtersActive);
 
   return (
     <section className="page" aria-labelledby="catalog-heading">

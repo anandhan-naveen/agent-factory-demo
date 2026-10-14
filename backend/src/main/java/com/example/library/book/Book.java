@@ -52,6 +52,7 @@ public class Book {
 
     /** Required by JPA. */
     protected Book() {
+        // Intentionally empty: JPA populates fields reflectively.
     }
 
     /**

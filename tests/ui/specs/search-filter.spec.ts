@@ -35,7 +35,7 @@ test.describe('Search', () => {
     const early = page.waitForRequest((r) => r.url().includes('q='), { timeout: 750 }).catch(() => null);
     await page.clock.runFor(299);
     expect(await early, 'no search request before 300 ms').toBeNull();
-    expect(mockApi.listRequests().length).toBe(initial);
+    expect(mockApi.listRequests()).toHaveLength(initial);
 
     await page.clock.runFor(1);
     await expect.poll(() => mockApi.listRequests().length).toBe(initial + 1);
@@ -45,7 +45,7 @@ test.describe('Search', () => {
 
     // A further pause does not produce extra requests.
     await page.clock.runFor(1_000);
-    expect(mockApi.listRequests().length).toBe(initial + 1);
+    expect(mockApi.listRequests()).toHaveLength(initial + 1);
   });
 });
 

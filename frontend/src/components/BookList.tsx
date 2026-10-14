@@ -8,7 +8,7 @@ interface Props {
   onDelete: (book: Book) => Promise<boolean>;
 }
 
-export function BookList({ books, busy, onToggleAvailability, onDelete }: Props) {
+export function BookList({ books, busy, onToggleAvailability, onDelete }: Readonly<Props>) {
   return (
     <ul className="book-list" data-testid="book-list" aria-label="Books" aria-busy={busy}>
       {books.map((book) => (

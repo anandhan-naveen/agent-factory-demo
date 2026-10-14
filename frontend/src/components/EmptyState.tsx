@@ -5,7 +5,7 @@ interface Props {
   children?: ReactNode;
 }
 
-export function EmptyState({ title, children }: Props) {
+export function EmptyState({ title, children }: Readonly<Props>) {
   return (
     <div className="state state--empty" data-testid="empty-state">
       <svg className="state__icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">

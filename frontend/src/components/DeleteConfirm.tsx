@@ -8,7 +8,7 @@ interface Props {
 }
 
 /** Inline confirmation shown in place of the row actions (no browser dialogs). */
-export function DeleteConfirm({ title, busy, onConfirm, onCancel }: Props) {
+export function DeleteConfirm({ title, busy, onConfirm, onCancel }: Readonly<Props>) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {

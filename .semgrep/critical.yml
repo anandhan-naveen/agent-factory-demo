@@ -1,0 +1,249 @@
+# Offline Semgrep rules for the critical patterns in this stack.
+# CI runs these *in addition to* the registry rulesets (p/default, p/owasp-top-ten, p/java,
+# p/typescript, p/react, p/secrets, p/github-actions, p/dockerfile); see .github/workflows/security.yml.
+# They also run where the registry is unreachable: `semgrep scan --config .semgrep/ --metrics off`.
+rules:
+  # ---------------- Java / Spring ----------------
+  - id: java-sql-string-concat
+    languages: [java]
+    severity: ERROR
+    message: SQL/JPQL built by string concatenation or formatting; use bind parameters or the Criteria API.
+    metadata: { cwe: "CWE-89", owasp: "A03:2021" }
+    patterns:
+      - pattern-either:
+          - pattern: $EM.createQuery($Q, ...)
+          - pattern: $EM.createNativeQuery($Q, ...)
+          - pattern: (java.sql.Statement $S).executeQuery($Q)
+          - pattern: (java.sql.Statement $S).execute($Q)
+          - pattern: (java.sql.Statement $S).executeUpdate($Q)
+          - pattern: $JDBC.queryForList($Q, ...)
+          - pattern: $JDBC.queryForObject($Q, ...)
+          - pattern: $JDBC.query($Q, ...)
+          - pattern: $JDBC.update($Q, ...)
+      - metavariable-pattern:
+          metavariable: $Q
+          pattern-either:
+            - pattern: $A + $B
+            - pattern: String.format(...)
+            - pattern: $A.formatted(...)
+  - id: java-command-injection
+    languages: [java]
+    severity: ERROR
+    message: OS command execution; never pass request data to a shell.
+    metadata: { cwe: "CWE-78", owasp: "A03:2021" }
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec(...)
+      - pattern: new ProcessBuilder(...)
+  - id: java-unsafe-deserialization
+    languages: [java]
+    severity: ERROR
+    message: Java native deserialization of untrusted data.
+    metadata: { cwe: "CWE-502", owasp: "A08:2021" }
+    pattern-either:
+      - pattern: new java.io.ObjectInputStream(...).readObject()
+      - pattern: (java.io.ObjectInputStream $O).readObject()
+      - pattern: $M.enableDefaultTyping(...)
+      - pattern: $M.activateDefaultTyping(...)
+  - id: java-xxe-documentbuilder
+    languages: [java]
+    severity: WARNING
+    message: XML parser created without disabling external entities.
+    metadata: { cwe: "CWE-611", owasp: "A05:2021" }
+    patterns:
+      - pattern: javax.xml.parsers.DocumentBuilderFactory.newInstance()
+      - pattern-not-inside: |
+          $F = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+          ...
+          $F.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+  - id: java-insecure-random
+    languages: [java]
+    severity: WARNING
+    message: java.util.Random is not cryptographically secure; use SecureRandom for tokens/ids.
+    metadata: { cwe: "CWE-330" }
+    pattern: new java.util.Random(...)
+  - id: java-cors-wildcard-origin
+    languages: [java]
+    severity: ERROR
+    message: CORS allows any origin (or bypasses the central CorsConfig).
+    metadata: { cwe: "CWE-942", owasp: "A05:2021" }
+    pattern-either:
+      # Per-handler @CrossOrigin defaults to all origins; keep CORS centralised in CorsConfig.
+      - pattern: |
+          @CrossOrigin(...)
+          $RET $M(...) { ... }
+      - pattern: |
+          @CrossOrigin(...)
+          class $C { ... }
+      - pattern: $R.allowedOrigins("*")
+      - pattern: $R.allowedOriginPatterns("*")
+  - id: java-csrf-disabled
+    languages: [java]
+    severity: WARNING
+    message: CSRF protection disabled; acceptable only for stateless token-authenticated APIs.
+    metadata: { cwe: "CWE-352" }
+    pattern-either:
+      - pattern: $H.csrf().disable()
+      - pattern: $H.csrf(AbstractHttpConfigurer::disable)
+      - pattern: $H.csrf($C -> $C.disable())
+  - id: java-stacktrace-to-client
+    languages: [java]
+    severity: WARNING
+    message: printStackTrace leaks internals; log through SLF4J instead.
+    metadata: { cwe: "CWE-209" }
+    pattern: $E.printStackTrace()
+  - id: java-weak-hash
+    languages: [java]
+    severity: WARNING
+    message: Weak hash algorithm.
+    metadata: { cwe: "CWE-327", owasp: "A02:2021" }
+    pattern-either:
+      - pattern: java.security.MessageDigest.getInstance("MD5")
+      - pattern: java.security.MessageDigest.getInstance("SHA-1")
+      - pattern: java.security.MessageDigest.getInstance("SHA1")
+  - id: java-path-traversal-file-from-param
+    languages: [java]
+    severity: WARNING
+    message: File path built from a request parameter.
+    metadata: { cwe: "CWE-22", owasp: "A01:2021" }
+    patterns:
+      - pattern-inside: |
+          $RET $METHOD(..., @$ANN(...) String $P, ...) { ... }
+      - metavariable-regex:
+          metavariable: $ANN
+          regex: '(RequestParam|PathVariable|RequestHeader)'
+      - pattern-either:
+          - pattern: new java.io.File(..., <... $P ...>, ...)
+          - pattern: java.nio.file.Paths.get(..., <... $P ...>, ...)
+          - pattern: java.nio.file.Path.of(..., <... $P ...>, ...)
+
+  # ---------------- TypeScript / React ----------------
+  - id: ts-eval
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Dynamic code execution.
+    metadata: { cwe: "CWE-95", owasp: "A03:2021" }
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+  - id: ts-dom-xss-sink
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Writing HTML into the DOM; use text content or React rendering.
+    metadata: { cwe: "CWE-79", owasp: "A03:2021" }
+    pattern-either:
+      - pattern: $E.innerHTML = $X
+      - pattern: $E.outerHTML = $X
+      - pattern: $E.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+      - pattern: document.writeln(...)
+  - id: react-dangerously-set-inner-html
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: dangerouslySetInnerHTML is an XSS sink.
+    metadata: { cwe: "CWE-79", owasp: "A03:2021" }
+    pattern: "<$EL dangerouslySetInnerHTML={...} />"
+  - id: react-javascript-url
+    languages: [generic]
+    paths: { include: ["*.tsx", "*.jsx", "*.html"] }
+    severity: ERROR
+    message: "javascript: URL in an href (XSS)."
+    metadata: { cwe: "CWE-79" }
+    pattern-regex: '(?i)href\s*=\s*\W{0,3}javascript\s*[:]'
+  - id: ts-token-in-web-storage
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Credentials/tokens in Web Storage are readable by any XSS.
+    metadata: { cwe: "CWE-922" }
+    patterns:
+      - pattern-either:
+          - pattern: localStorage.setItem($K, ...)
+          - pattern: sessionStorage.setItem($K, ...)
+      - metavariable-regex:
+          metavariable: $K
+          regex: '(?i).*(token|jwt|secret|password|auth).*'
+  - id: ts-postmessage-wildcard
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: postMessage to any origin.
+    metadata: { cwe: "CWE-345" }
+    pattern: $W.postMessage($M, "*")
+  - id: ts-tls-verification-disabled
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: TLS certificate verification disabled.
+    metadata: { cwe: "CWE-295" }
+    pattern-either:
+      - pattern: '{..., rejectUnauthorized: false, ...}'
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+  # ---------------- Secrets (all files) ----------------
+  - id: hardcoded-private-key
+    languages: [generic]
+    paths: { exclude: [".semgrep/"] }
+    severity: ERROR
+    message: Private key material committed to the repo.
+    metadata: { cwe: "CWE-798" }
+    pattern-regex: '-----BEGIN ((RSA|EC|DSA|OPENSSH|PGP) )?PRIVATE KEY( BLOCK)?-----'
+  - id: hardcoded-cloud-token
+    languages: [generic]
+    paths: { exclude: [".semgrep/"] }
+    severity: ERROR
+    message: Hard-coded cloud/API token.
+    metadata: { cwe: "CWE-798" }
+    pattern-regex: '(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk_live_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{35})'
+
+  # ---------------- GitHub Actions ----------------
+  - id: gha-run-script-injection
+    languages: [yaml]
+    paths: { include: [".github/workflows/*.yml", ".github/workflows/*.yaml", "action.yml", "action.yaml"] }
+    severity: ERROR
+    message: Attacker-controllable github context interpolated into a run script; pass it through env instead.
+    metadata: { cwe: "CWE-78" }
+    patterns:
+      - pattern: "run: $SCRIPT"
+      - metavariable-regex:
+          metavariable: $SCRIPT
+          regex: '(?s).*\$\{\{\s*github\.(event\.(issue|pull_request|comment|review|review_comment|pages|commits|head_commit|workflow_run|discussion)|head_ref).*'
+  - id: gha-pull-request-target
+    languages: [yaml]
+    paths: { include: [".github/workflows/*.yml", ".github/workflows/*.yaml"] }
+    severity: WARNING
+    message: pull_request_target runs with write token on untrusted code; avoid unless checkout is of the base ref.
+    pattern-regex: '\bpull_request_target\b'
+  - id: gha-write-all-permissions
+    languages: [yaml]
+    paths: { include: [".github/workflows/*.yml", ".github/workflows/*.yaml"] }
+    severity: WARNING
+    message: Workflow grants write-all permissions.
+    pattern-regex: '(?m)^\s*permissions:\s*write-all\s*$'
+
+  # ---------------- Dockerfile ----------------
+  - id: dockerfile-no-user
+    languages: [dockerfile]
+    severity: WARNING
+    message: Final stage runs as root (no USER instruction after the last FROM).
+    patterns:
+      - pattern: FROM $IMG
+      - pattern-not-inside: |
+          FROM $IMG
+          ...
+          USER $U
+      - pattern-not-inside: |
+          FROM $IMG
+          ...
+          FROM $NEXT
+  - id: dockerfile-latest-tag
+    languages: [dockerfile]
+    severity: WARNING
+    message: Base image uses the floating latest tag.
+    pattern-either:
+      - pattern: FROM $IMG:latest
+      - pattern: FROM $IMG:latest AS $S
+  - id: dockerfile-add-remote
+    languages: [generic]
+    paths: { include: ["Dockerfile", "*.Dockerfile", "Dockerfile.*"] }
+    severity: WARNING
+    message: ADD from a remote URL; download with checksum verification instead.
+    pattern-regex: '(?im)^\s*ADD\s+(--\S+\s+)*https?://'

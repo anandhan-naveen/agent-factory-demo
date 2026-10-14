@@ -9,6 +9,8 @@ public class InvalidRequestException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
+    // Concrete Serializable type on purpose: exceptions are Serializable (SpotBugs SE_BAD_FIELD) and order matters.
+    @SuppressWarnings("PMD.LooseCoupling")
     private final LinkedHashMap<String, String> errors;
 
     public InvalidRequestException(Map<String, String> errors) {

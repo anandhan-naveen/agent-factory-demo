@@ -65,7 +65,7 @@ describe('validateBook', () => {
 
   it('treats non-string values as missing', () => {
     const errors = validateBook({ title: 42, author: null, isbn: undefined, publishedYear: null, genre: 7 }, NOW);
-    expect(Object.keys(errors).sort()).toEqual(['author', 'genre', 'isbn', 'publishedYear', 'title']);
+    expect(Object.keys(errors).sort((a, b) => a.localeCompare(b))).toEqual(['author', 'genre', 'isbn', 'publishedYear', 'title']);
   });
 
   it('enforces title length 1–200', () => {

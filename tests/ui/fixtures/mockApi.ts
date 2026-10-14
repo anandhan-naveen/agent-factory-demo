@@ -19,6 +19,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Request body as parsed JSON, the raw string when it is not JSON, or undefined when absent. */
+function parseBody(raw: string | null): unknown {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
+}
+
 /**
  * In-memory implementation of docs/api/openapi.yaml served through `page.route`.
  * The real HttpBooksApi in the app talks to it, so the full HTTP client path is exercised.
@@ -72,15 +82,7 @@ export class MockApi {
       return;
     }
     const url = new URL(request.url());
-    let body: unknown = undefined;
-    const raw = request.postData();
-    if (raw) {
-      try {
-        body = JSON.parse(raw) as unknown;
-      } catch {
-        body = raw;
-      }
-    }
+    const body = parseBody(request.postData());
     this.requests.push({ method, url, body });
 
     if (this.latencyMs > 0) await new Promise((resolve) => setTimeout(resolve, this.latencyMs));
@@ -91,22 +93,25 @@ export class MockApi {
       return;
     }
 
-    const segments = url.pathname.split('/').filter(Boolean); // ['api','books',id?,'availability'?]
-    const id = segments[2] ? decodeURIComponent(segments[2]) : undefined;
-    const sub = segments[3];
-
     try {
-      if (!id && method === 'GET') await this.list(route, url);
-      else if (!id && method === 'POST') await this.create(route, body);
-      else if (id && !sub && method === 'GET') await this.get(route, id);
-      else if (id && !sub && method === 'DELETE') await this.remove(route, id);
-      else if (id && sub === 'availability' && method === 'PATCH') await this.patchAvailability(route, id, body);
-      else await this.problem(route, { status: 405, title: 'Method Not Allowed' });
+      await this.dispatch(route, method, url, body);
     } catch (error) {
       // Page closed mid-request (test finished): nothing to fulfil.
       if (error instanceof Error && /closed|disposed/i.test(error.message)) return;
       throw error;
     }
+  }
+
+  private async dispatch(route: Route, method: string, url: URL, body: unknown): Promise<void> {
+    const segments = url.pathname.split('/').filter(Boolean); // ['api','books',id?,'availability'?]
+    const id = segments[2] ? decodeURIComponent(segments[2]) : undefined;
+    const sub = segments[3];
+    if (!id && method === 'GET') await this.list(route, url);
+    else if (!id && method === 'POST') await this.create(route, body);
+    else if (id && !sub && method === 'GET') await this.get(route, id);
+    else if (id && !sub && method === 'DELETE') await this.remove(route, id);
+    else if (id && sub === 'availability' && method === 'PATCH') await this.patchAvailability(route, id, body);
+    else await this.problem(route, { status: 405, title: 'Method Not Allowed' });
   }
 
   private async json(route: Route, status: number, data: unknown, headers: Record<string, string> = {}): Promise<void> {

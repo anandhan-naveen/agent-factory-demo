@@ -96,7 +96,7 @@ describe('DemoBooksApi', () => {
     const { api } = make();
     const error = await catchError(api.createBook({ ...NEW_BOOK, title: '', isbn: '9780441172710', publishedYear: 2027 }));
     expect(error.status).toBe(400);
-    expect(Object.keys(error.errors).sort()).toEqual(['isbn', 'publishedYear', 'title']);
+    expect(Object.keys(error.errors).sort((a, b) => a.localeCompare(b))).toEqual(['isbn', 'publishedYear', 'title']);
   });
 
   it('rejects a duplicate ISBN with 409', async () => {
@@ -172,6 +172,6 @@ describe('createBooksApi', () => {
 
   it('falls back to demo mode when the base URL is empty', () => {
     expect(createBooksApi('  ').mode).toBe('demo');
-    expect(createBooksApi(undefined).mode).toBe('demo');
+    expect(createBooksApi().mode).toBe('demo');
   });
 });

@@ -79,13 +79,20 @@ export async function toApiError(response: Response): Promise<ApiError> {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** Removes trailing '/' characters in linear time (no backtracking regex). */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.endsWith('/', end)) end -= 1;
+  return value.slice(0, end);
+}
+
 export class HttpBooksApi implements BooksApi {
   readonly mode = 'http' as const;
   private readonly baseUrl: string;
   private readonly fetchImpl: FetchLike;
 
   constructor(baseUrl: string, fetchImpl: FetchLike = (input, init) => fetch(input, init)) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.baseUrl = stripTrailingSlashes(baseUrl);
     this.fetchImpl = fetchImpl;
   }
 

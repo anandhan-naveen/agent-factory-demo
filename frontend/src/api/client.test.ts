@@ -139,8 +139,8 @@ describe('HttpBooksApi', () => {
 
   it('uses global fetch by default', async () => {
     const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(BOOK));
-    await new HttpBooksApi('http://x').getBook('b1');
-    expect(spy).toHaveBeenCalledWith('http://x/api/books/b1', expect.anything());
+    await new HttpBooksApi('https://x').getBook('b1');
+    expect(spy).toHaveBeenCalledWith('https://x/api/books/b1', expect.anything());
   });
 });
 

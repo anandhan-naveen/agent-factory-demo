@@ -11,7 +11,7 @@ interface Props {
 
 let toastSeq = 0;
 
-export function App({ api }: Props) {
+export function App({ api }: Readonly<Props>) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const notify = useCallback((text: string, kind: ToastKind = 'success') => {

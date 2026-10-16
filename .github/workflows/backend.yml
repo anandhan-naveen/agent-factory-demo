@@ -199,7 +199,7 @@ jobs:
       # Pinned by commit SHA (v0.35.0): trivy-action tags were hijacked in March 2026.
       # Note that `@0.28.0` does not exist; that release is tagged `v0.28.0`.
       - name: Trivy scan of the local image (fail on CRITICAL/HIGH)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           format: sarif

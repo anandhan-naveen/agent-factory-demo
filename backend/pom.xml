@@ -33,7 +33,7 @@
     <findsecbugs.version>1.13.0</findsecbugs.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
     <!-- The plugin bundles Checkstyle 9.3, which cannot parse Java 21; 10.x is the last line that runs on Java 17+. -->
-    <checkstyle.version>10.26.1</checkstyle.version>
+    <checkstyle.version>14.3.0</checkstyle.version>
     <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
   </properties>
 

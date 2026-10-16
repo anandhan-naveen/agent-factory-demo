@@ -4,6 +4,7 @@ import { pick } from '../support/data';
 test.describe('Delete', () => {
   // FE-AC9: no browser dialogs allowed. Any alert/confirm/prompt fails the test.
   let dialogs: string[] = [];
+
   test.beforeEach(({ page }) => {
     dialogs = [];
     page.on('dialog', (dialog) => {
@@ -11,6 +12,7 @@ test.describe('Delete', () => {
       void dialog.dismiss();
     });
   });
+
   test.afterEach(() => {
     expect(dialogs, 'browser dialogs were opened').toEqual([]);
   });

@@ -71,11 +71,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # full history
 
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+      # gitleaks-action fails on a branch's first push (it scans "<first>^..<last>" and the
+      # root commit has no parent), so run the CLI over the full history instead.
+      - name: Scan full git history for secrets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Only required for repositories owned by an organization.
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.28.0
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+            "$GITLEAKS_IMAGE" git /repo --redact --no-banner -v
 
   semgrep:
     name: SAST (Semgrep)

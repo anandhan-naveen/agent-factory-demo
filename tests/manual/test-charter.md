@@ -1,14 +1,18 @@
 # Manual test charter: Library Catalog (FE issue 01)
 
-Scope: `issues/01-frontend-library-catalog.md`, FE-AC1 to FE-AC11, run against the **demo-mode build** (`npm run build && npx vite preview`).
+Scope: `issues/01-frontend-library-catalog.md`, FE-AC1 to FE-AC11, run against the **deployed QA environment** (`QA_URL` = https://anandhan-naveen.github.io/agent-factory-demo/), after the pipeline's deploy and smoke test have passed. Never a local build. (The first run on 2026-10-14 predates this rule and used a local demo build.)
 The UI automation in `tests/ui` (tagged `@FE-ACx`) checks the functional logic. These sessions cover what automation judges poorly: how the app looks and reads, keyboard and screen-reader experience, how it feels on a slow network, and exploratory edge cases.
 
 Heuristics used: **SFDIPOT** (Structure, Function, Data, Interfaces, Platform, Operations, Time) for coverage. **CRUSSPIC STMPL** quality criteria, mainly Capability, Usability, Accessibility (under Usability), Performance-as-perceived and Compatibility. **Consistency oracles**: the issue text, the app's own copy, WCAG 2.2 AA and comparable catalog UIs.
 
 Setup notes:
-- Demo mode: run `npx vite build` with no `VITE_API_BASE_URL`. Data lives in `localStorage` key `library.demo.v1`. Clear it to reseed the 8 sample books.
-- Error and slow network: build with `VITE_API_BASE_URL=http://127.0.0.1:9/api` and intercept the API in the browser (Playwright `page.route` or DevTools request blocking). Return 503 to get an error, or delay about 3 s to get slow responses. The demo API has no failure switch, so this is the only way to see FE-AC5 in a real browser.
+- The QA URL runs in **demo mode** (no `VITE_API_BASE_URL`): an in-browser mock API with about 250 ms latency. Data lives in `localStorage` key `library.demo.v1`; clear it and reload to reseed the 8 sample books.
+- Demo mode makes no HTTP calls, so request interception cannot simulate a 503 or a 3 s delay on the QA URL. What can be done there:
+  - **Error state (FE-AC5):** the demo API rejects searches over 200 characters with a 400. The search box has `maxLength=200`, so set a 201-character value through the native value setter plus an `input` event (DOM-forced, not a user path). This shows the real deployed error panel and Try again.
+  - **Loading state (FE-AC1):** capture it inside the 250 ms demo latency right after a reload.
+  - A real 503/slow-API session needs an HTTP-mode QA deployment. Until then, those parts of C4 rely on the `@FE-AC5` and `@FE-AC1` mocked-API automation.
 - Viewports: 360×780 (small phone) and 1280×860 (desktop). Colour schemes: light and dark (`prefers-color-scheme`).
+- Every run re-tests all open and previously fixed defects (regression list in `test-cases.md`).
 
 ---
 

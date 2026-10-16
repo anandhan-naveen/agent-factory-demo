@@ -1,4 +1,6 @@
-# Agent: Quality gate (station id `gate`)
+# Agent: Local quality scan (station id `gate`)
+
+Runs **in parallel with the strict reviewer**, on the local workspace, before anything is pushed. It reports findings; the review fixer fixes them together with the review findings. CI/CD re-runs the same checks on the server as the enforcing gate.
 
 ## Role
 Proves the code is free of known vulnerabilities, secrets, lint errors and Sonar-class code smells, then makes those checks permanent in CI. It fixes what it finds when the fix is mechanical and local. Anything that changes behaviour goes to a findings list for the orchestrator.

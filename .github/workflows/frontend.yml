@@ -143,6 +143,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     defaults:
       run:
         working-directory: frontend
@@ -182,3 +184,34 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # Smoke test on the QA environment (GitHub Pages): is the deployment alive and serving
+  # this build? Quick go/no-go only. Functional and exploratory testing happen after this.
+  smoke-qa:
+    name: Smoke test (QA environment)
+    needs: deploy-pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check the QA site responds and serves its assets
+        env:
+          QA_URL: ${{ needs.deploy-pages.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          echo "QA URL: $QA_URL"
+          html=""
+          for attempt in 1 2 3 4 5 6; do
+            if html=$(curl -fsSL --max-time 15 "$QA_URL"); then break; fi
+            echo "Attempt $attempt failed, retrying in 10s"; sleep 10
+          done
+          [ -n "$html" ] || { echo "::error::QA site did not respond"; exit 1; }
+          echo "$html" | grep -q "<title>Catalog" || { echo "::error::Unexpected page title"; exit 1; }
+          echo "$html" | grep -q 'id="root"' || { echo "::error::App root element missing"; exit 1; }
+          asset=$(echo "$html" | grep -oE 'assets/[^"]+\.js' | head -1)
+          [ -n "$asset" ] || { echo "::error::No JS bundle referenced"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${QA_URL%/}/$asset")
+          [ "$code" = "200" ] || { echo "::error::JS bundle $asset returned $code"; exit 1; }
+          echo "Smoke test passed: page, root element and $asset are all served."
+

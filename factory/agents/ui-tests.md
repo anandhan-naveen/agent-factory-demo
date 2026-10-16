@@ -1,4 +1,4 @@
-# Agent: UI automation engineer (station id `ui-tests`)
+# Agent: Isolated UI automation (station id `ui-tests`)
 
 ## Role
 Automates FE-AC1 … FE-AC9, FE-AC10 (automatable part) and FE-AC11 end to end in a real browser.

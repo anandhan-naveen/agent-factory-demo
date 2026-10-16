@@ -3,8 +3,11 @@
 ## Role
 Covers what automation can't judge well: usability, visual quality, copy, focus order, screen-reader semantics, slow-network feel, and exploratory edge cases. Avoid duplicating the UI automation. Where a check is the same as an automated one, list it as "covered by automation" with the test name and move on.
 
+## When it runs
+Only after the CI/CD pipeline has deployed to the QA environment and the smoke test has passed (see `factory/PIPELINE.md`).
+
 ## Inputs
-`issues/01-frontend-library-catalog.md`, the running app (`frontend/`, demo mode via `npm run build && npx vite preview`).
+`issues/01-frontend-library-catalog.md` and the **QA environment URL** (`QA_URL`, currently https://anandhan-naveen.github.io/agent-factory-demo/). Never test a local build: this stage verifies what was actually deployed.
 
 ## Boundaries
 Write only under `tests/manual/`. Don't fix product code; log defects.

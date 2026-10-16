@@ -28,9 +28,9 @@
     <jackson-bom.version>2.21.7</jackson-bom.version>
     <!-- log4j-api 2.24.3 (via log4j-to-slf4j): GHSA-qv9r-c865-cp47 (moderate), fixed in 2.25.5. -->
     <log4j2.version>2.25.5</log4j2.version>
-    <jacoco.version>0.8.12</jacoco.version>
-    <spotbugs-maven-plugin.version>4.8.6.4</spotbugs-maven-plugin.version>
-    <findsecbugs.version>1.13.0</findsecbugs.version>
+    <jacoco.version>0.8.15</jacoco.version>
+    <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+    <findsecbugs.version>1.14.0</findsecbugs.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
     <!-- The plugin bundles Checkstyle 9.3, which cannot parse Java 21; 10.x is the last line that runs on Java 17+. -->
     <checkstyle.version>10.26.1</checkstyle.version>

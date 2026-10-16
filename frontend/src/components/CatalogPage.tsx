@@ -8,6 +8,7 @@ import { BookList } from './BookList';
 import { wantsResultsFocus } from './catalogFocus';
 import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
+import { describeLoadError } from './loadError';
 import { Filters, type FilterValues } from './Filters';
 import type { ToastKind } from './Toast';
 
@@ -43,6 +44,12 @@ function renderEmpty(filtersActive: boolean, clearFilters: () => void) {
       <p className="state__detail">Add the first book to start your catalog.</p>
     </EmptyState>
   );
+}
+
+/** Plain-language load error; "Clear filters" is offered only when the active filters caused it. */
+function renderError(error: unknown, filtersActive: boolean, retry: () => void, clearFilters: () => void) {
+  const copy = describeLoadError(error, filtersActive);
+  return <ErrorState message={copy.message} onRetry={retry} onClearFilters={copy.filtersCause ? clearFilters : undefined} />;
 }
 
 /** `blocked` is true while page 0 reloads (new filter) or another page is loading. */
@@ -153,7 +160,7 @@ export function CatalogPage({ api, notify }: Readonly<Props>) {
 
   let content;
   if (error) {
-    content = <ErrorState message={error.message} onRetry={retry} />;
+    content = renderError(error, filtersActive, retry, clearFilters);
   } else if (books === null) {
     content = (
       <div className="state state--loading" role="status" data-testid="loading">

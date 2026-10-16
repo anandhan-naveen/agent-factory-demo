@@ -172,7 +172,9 @@ describe('CatalogPage', () => {
 
     const error = await screen.findByTestId('error-state');
     expect(error).toHaveAttribute('role', 'alert');
-    expect(error).toHaveTextContent('The catalog service is down.');
+    expect(error).toHaveTextContent('Something went wrong on our side. Try again in a moment.');
+    expect(error).not.toHaveTextContent('Service Unavailable');
+    expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await rows()).toHaveLength(8);
     expect(listBooks).toHaveBeenCalledTimes(2);
@@ -180,7 +182,7 @@ describe('CatalogPage', () => {
 
   it('FE-AC5: handles non-Error rejections', async () => {
     renderApp(stubApi({ listBooks: () => Promise.reject(new Error('Unknown error')) }));
-    expect(await screen.findByTestId('error-state')).toHaveTextContent('Unknown error');
+    expect(await screen.findByTestId('error-state')).toHaveTextContent('Something went wrong on our side.');
   });
 
   it('FE-AC8: toggles availability without reloading the list', async () => {
@@ -466,5 +468,58 @@ describe('CatalogPage', () => {
     await rows();
     expect(screen.getByText('Live catalog: changes are saved to the catalog service.')).toBeInTheDocument();
     expect(screen.queryByText(/Connected to/)).not.toBeInTheDocument();
+  });
+
+  it('D10: a 400 on the search shows plain copy and a Clear filters way out', async () => {
+    const base = demoApi();
+    const listBooks = vi.fn(base.listBooks.bind(base));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await rows();
+    listBooks.mockRejectedValueOnce(new ApiError(400, 'Validation failed', { q: 'Search must be 200 characters or fewer' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'zzz');
+
+    const error = await screen.findByTestId('error-state');
+    expect(error).toHaveTextContent('We couldn’t load the catalog.');
+    expect(error).toHaveTextContent('Your search is too long. Shorten it and try again.');
+    expect(error).not.toHaveTextContent('Validation failed');
+    expect(within(error).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+
+    await user.click(within(error).getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveFocus();
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
+    expect(await rows()).toHaveLength(8);
+  });
+
+  it('D10: a 400 on another filter suggests clearing the filters', async () => {
+    const base = demoApi();
+    const listBooks = vi.fn(base.listBooks.bind(base));
+    const { user } = renderApp(stubApi({ listBooks }, base));
+    await rows();
+    listBooks.mockRejectedValueOnce(new ApiError(400, 'Validation failed', { genre: 'Unknown genre' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Available only' }));
+    const error = await screen.findByTestId('error-state');
+    expect(error).toHaveTextContent('Some filters aren’t valid. Clear the filters and try again.');
+    expect(within(error).getByTestId('clear-filters')).toBeInTheDocument();
+  });
+
+  it('D10 / R3-FE-03: a paging 400 on the first page gets generic copy and only Try again', async () => {
+    renderApp(stubApi({ listBooks: () => Promise.reject(new ApiError(400, 'Validation failed', { size: 'too big' })) }));
+    const error = await screen.findByTestId('error-state');
+    expect(error).toHaveTextContent('Something went wrong on our side. Try again in a moment.');
+    expect(error).not.toHaveTextContent(/loading more/i);
+    expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
+  });
+
+  it('R3-FE-03: an unrecognised 400 with no active filters does not ask to clear filters', async () => {
+    renderApp(stubApi({ listBooks: () => Promise.reject(new ApiError(400, 'Validation failed', { sort: 'bad' })) }));
+    const error = await screen.findByTestId('error-state');
+    expect(error).toHaveTextContent('Something went wrong on our side. Try again in a moment.');
+    expect(error).not.toHaveTextContent(/clear the filters/i);
+    expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
+  });
+
+  it('D10: a network failure gets connection copy', async () => {
+    renderApp(stubApi({ listBooks: () => Promise.reject(new ApiError(0, 'Network error')) }));
+    expect(await screen.findByTestId('error-state')).toHaveTextContent('Check your connection and try again.');
   });
 });

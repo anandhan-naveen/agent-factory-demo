@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { keepFocusClearOfToast, releaseToastSpace, reserveToastSpace } from './toastClearance';
 
 export type ToastKind = 'success' | 'error';
 
@@ -17,8 +18,14 @@ interface Props {
 /**
  * Success messages go into an always-mounted polite status region; errors into a role="alert"
  * element. Only the message text is inside the live region: the dismiss button stays outside.
+ *
+ * While a toast is visible it reserves its height at the bottom of the page (padding and
+ * scroll-padding via --toast-space) and scrolls the focused control clear of it, so the toast
+ * never hides keyboard focus or the badge that just changed (WCAG 2.4.11).
  */
 export function Toast({ toast, onDismiss, durationMs = 4000 }: Readonly<Props>) {
+  const regionRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(onDismiss, durationMs);
@@ -27,10 +34,48 @@ export function Toast({ toast, onDismiss, durationMs = 4000 }: Readonly<Props>) 
     };
   }, [toast, onDismiss, durationMs]);
 
+  /** Cancels a release still waiting for the user to scroll out of the reserved space (R3-FE-02). */
+  const cancelRelease = useRef<(force?: boolean) => void>(() => undefined);
+
+  useLayoutEffect(() => {
+    const region = regionRef.current;
+    if (!toast || !region) return;
+    cancelRelease.current();
+    let space = reserveToastSpace(region);
+    keepFocusClearOfToast(region, document.activeElement);
+
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof Element) keepFocusClearOfToast(region, event.target);
+    };
+    // R3-FE-01: the toast's height changes with the viewport (wrapping, orientation), so re-measure.
+    const remeasure = () => {
+      space = reserveToastSpace(region);
+      keepFocusClearOfToast(region, document.activeElement);
+    };
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(remeasure) : null;
+    observer?.observe(region);
+    window.addEventListener('resize', remeasure);
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      window.removeEventListener('resize', remeasure);
+      observer?.disconnect();
+      cancelRelease.current = releaseToastSpace(space);
+    };
+  }, [toast]);
+
+  // On unmount, drop any space still kept for a scrolled-to-bottom page.
+  useEffect(
+    () => () => {
+      cancelRelease.current(true);
+    },
+    [],
+  );
+
   const kind = toast?.kind ?? 'success';
 
   return (
-    <div className="toast-region">
+    <div className="toast-region" ref={regionRef}>
       <div
         className={toast ? `toast toast--${kind}` : 'toast toast--idle'}
         data-testid={toast ? 'toast' : undefined}

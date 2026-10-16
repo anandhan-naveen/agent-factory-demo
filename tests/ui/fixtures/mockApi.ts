@@ -36,7 +36,7 @@ function parseBody(raw: string | null): unknown {
 export class MockApi {
   readonly isReal = false as const;
   private books: Book[] = [];
-  private failures: number[] = [];
+  private failures: Problem[] = [];
   private latencyMs = 0;
   private idSeq = 0;
   readonly requests: RecordedRequest[] = [];
@@ -61,7 +61,13 @@ export class MockApi {
 
   /** The next `times` requests (any endpoint) fail with `status` and a problem+json body. */
   failNext(status: number, times = 1): void {
-    for (let i = 0; i < times; i += 1) this.failures.push(status);
+    const title = status >= 500 ? 'Internal Server Error' : 'Request failed';
+    for (let i = 0; i < times; i += 1) this.failures.push({ status, title, detail: 'Injected failure' });
+  }
+
+  /** The next `times` requests (any endpoint) fail with exactly this problem+json body. */
+  failNextWith(problem: Problem, times = 1): void {
+    for (let i = 0; i < times; i += 1) this.failures.push({ ...problem });
   }
 
   /** Adds latency to every subsequent response. */
@@ -89,7 +95,7 @@ export class MockApi {
 
     const injected = this.failures.shift();
     if (injected !== undefined) {
-      await this.problem(route, { status: injected, title: injected >= 500 ? 'Internal Server Error' : 'Request failed', detail: 'Injected failure' });
+      await this.problem(route, injected);
       return;
     }
 

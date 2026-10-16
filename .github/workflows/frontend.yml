@@ -109,7 +109,14 @@ jobs:
 
       - name: Install Chromium
         working-directory: tests/ui
-        run: npx playwright install --with-deps chromium
+        run: |
+          set -o pipefail
+          if ! npx playwright install --with-deps chromium 2>&1 | tee "$RUNNER_TEMP/pw-install.log"; then
+            # Surface the cause as an annotation so it is readable without downloading logs.
+            tail -n 15 "$RUNNER_TEMP/pw-install.log" | tr '\n' ' ' | sed 's/^/::error title=Playwright install failed::/'
+            echo
+            exit 1
+          fi
 
       # chromium: full suite against the mocked API. demo: smoke subset against the demo-mode
       # build that deploy-pages publishes (empty VITE_API_BASE_URL). One run builds and serves both.

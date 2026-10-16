@@ -733,6 +733,13 @@ select {
   margin-bottom: 6px;
 }
 
+.state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .state--error {
   margin-top: 20px;
   background: var(--red-50);
@@ -802,6 +809,15 @@ select {
 }
 
 /* ---------- Toast ---------- */
+
+/* While a toast is visible, reserve its height at the bottom so it never hides focus (WCAG 2.4.11). */
+html.has-toast {
+  scroll-padding-bottom: var(--toast-space, 0px);
+}
+
+html.has-toast .shell {
+  padding-bottom: var(--toast-space, 0px);
+}
 
 .toast-region {
   position: fixed;

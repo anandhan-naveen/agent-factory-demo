@@ -11,14 +11,14 @@ Playwright Test + TypeScript (strict) + `@axe-core/playwright`, covering FE-AC1 
   [`docs/api/openapi.yaml`](../../docs/api/openapi.yaml) (`fixtures/mockApi.ts`): list/search/genre/available/paging,
   create with validation (400) and duplicate ISBN (409), PATCH availability, DELETE, CORS preflight.
   The app's real `HttpBooksApi` is exercised end to end.
-- `mockApi.failNext(status, times?)` injects problem+json errors, `mockApi.delay(ms)` adds latency,
+- `mockApi.failNext(status, times?)` injects problem+json errors (`failNextWith(problem, times?)` for an exact body, e.g. 400 with `errors.q`), `mockApi.delay(ms)` adds latency,
   `mockApi.requests` / `listRequests()` expose the HTTP traffic for assertions.
 - `demo` project (R-FE-02): the same frontend is also built with an **empty** `VITE_API_BASE_URL` (exactly what the
   GitHub Pages job deploys) into `tests/ui/.app-dist-demo` and served on port 4174 (`UI_TEST_PORT + 1`). The smoke specs
   in `demo/` (fixtures in `fixtures/demo.ts`) cover FE-AC1–4 and 7–9, the demo badge and persistence across reloads;
   localStorage is cleared once per test, and any request to a books API fails the test.
 - Page objects: `pages/CatalogPage.ts`, `pages/AddBookPage.ts` (roles/labels first, `data-testid` fallback).
-- Every test title carries its AC tag, e.g. `@FE-AC6`. Run one AC with `npx playwright test -g @FE-AC6`.
+- Every test title carries its AC tag, e.g. `@FE-AC6`; regression tests also carry their bug id (`@BUG-38`, `@BUG-39`). Run one AC with `npx playwright test -g @FE-AC6`.
 
 ### Integration mode (optional)
 
@@ -53,13 +53,15 @@ Traces, screenshots and videos are kept on failure (`test-results/`); CI also wr
 | FE-AC2 search, debounce | `specs/search-filter.spec.ts` | author match, case-insensitive · author search returns only matches · title match, case-insensitive (`q` sent as typed) · 300 ms debounce with `page.clock` (no request at 299 ms, exactly one at 300 ms, one request for a burst of keystrokes) |
 | FE-AC3 genre + available | `specs/search-filter.spec.ts` | All + 6 genres · genre narrows (`genre=` param) · Available only (`available=true`) · search + genre + availability combine |
 | FE-AC4 empty state | `specs/search-filter.spec.ts` | "No books match your filters" + Clear filters restores list and resets every control · Clear filters resets genre/availability and query params |
-| FE-AC5 error + retry | `specs/error-state.spec.ts` | 500 on load → alert + Try again re-requests · repeated failures · failure while filtering retries same query · network failure (aborted request) |
+| FE-AC5 error + retry | `specs/error-state.spec.ts` | 500 on load → alert + Try again re-requests · repeated failures · failure while filtering retries same query · network failure (aborted request) shows connection copy · see BUG-39 rows |
 | FE-AC6 validation | `specs/add-book-validation.spec.ts` | empty submit: 5 messages, focus Title, no POST · bad ISBN checksum focuses ISBN · ISBN length/characters · title 1–200 · author 1–120 · year 1450–current (incl. non-numeric) · genre required · boundary values accepted + hyphenated ISBN normalised · first invalid field in form order gets focus |
 | FE-AC7 save + 409 | `specs/add-book-save.spec.ts` | save returns to catalog, "Book added", new row listed · normalised POST payload · 409 → "A book with this ISBN already exists" under ISBN, focused · 400 field errors mapped under fields · 500 → form alert · Cancel saves nothing |
 | FE-AC8 availability | `specs/availability.spec.ts` | toggle on loan ↔ available, no reload (window marker) · PATCH body, no list refetch, other rows untouched · failed PATCH keeps badge · with "Available only" on, a book marked on loan drops out |
 | FE-AC9 delete | `specs/delete.spec.ts` | in-page confirm (no browser dialogs, asserted for every test) then removal · DELETE request + count heading · cancel by click and Escape, focus restored · failed DELETE keeps row |
 | FE-AC10 a11y (automatable) | `specs/accessibility.spec.ts` | axe WCAG 2.1 A/AA (no serious/critical, incl. colour contrast) on catalog, confirm+toast, empty, error, add page pristine + with errors · labelled fields, `status`/`alert` roles · result count and empty state announced in a live region (F-01, fixed) · focus kept after Clear filters / Try again / save · all catalog controls Tab-reachable with visible focus ring, toggle/delete by keyboard · keyboard-only add-book flow |
 | Demo build (Pages) | `demo/demo-smoke.spec.ts` | demo badge + seed list · search · genre/available · empty state + Clear filters · add, toggle, delete each persisted across reload · no API requests |
+| BUG-38 (QA D9) toast hides focus | `specs/toast-focus.spec.ts`, `demo/toast-focus.spec.ts` (helper `support/toastClearance.ts`) | 360×780 and 1280×800 (mocked, 24 books) + 360×780 demo build: toggle scrolled into the bottom 70 px, focused, Enter → while the toast is visible the focused toggle, its row and its badge do not intersect the toast and stay inside the viewport (WCAG 2.4.11) |
+| BUG-39 (QA D10) "Validation failed" copy | `specs/error-state.spec.ts` | 400 with `errors.q` → "Your search is too long…", no "Validation failed", Clear filters + Try again; Clear filters reloads the full list, empties and focuses search · 400 with `errors.genre` → plain filter copy, Clear filters resets genre · 500 → generic copy, no server title/detail, no Clear filters |
 | FE-AC11 responsive | `specs/responsive.spec.ts` | 360 / 768 / 1280 px: catalog (list, confirm, toast, empty) and add form (with errors) have `scrollWidth <= clientWidth` · 360 px long unbroken title + error state |
 
 Manual follow-up for FE-AC10 (screen-reader announcements, focus ring visual quality) lives in `tests/manual`.

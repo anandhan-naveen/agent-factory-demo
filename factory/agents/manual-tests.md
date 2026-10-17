@@ -7,7 +7,7 @@ Covers what automation can't judge well: usability, visual quality, copy, focus 
 Only after the CI/CD pipeline has deployed to the QA environment and the smoke test has passed (see `factory/PIPELINE.md`).
 
 ## Inputs
-`issues/01-frontend-library-catalog.md` and the **QA environment URL** (`QA_URL`, currently https://anandhan-naveen.github.io/agent-factory-demo/). Never test a local build: this stage verifies what was actually deployed.
+`issues/01-frontend-library-catalog.md` and the **QA environment URL** (`QA_URL`, currently https://anandhan-naveen.github.io/storyrail/). Never test a local build: this stage verifies what was actually deployed.
 
 ## Boundaries
 Write only under `tests/manual/`. Don't fix product code; log defects.

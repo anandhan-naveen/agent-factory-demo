@@ -3,11 +3,11 @@ services:
   - type: web
     name: library-api
     # Image-backed: Render runs the image CI built, scanned with Trivy and pushed to GHCR; it never rebuilds
-    # from the Dockerfile. Replace OWNER/REPO (lower case) before creating the Blueprint. Each CI deploy passes
+    # from the Dockerfile. Set to this repo (anandhan-naveen/storyrail); change it if you fork. Each CI deploy passes
     # the scanned image's digest to the deploy hook (imgURL), so this tag is only the initial image.
     runtime: image
     image:
-      url: ghcr.io/OWNER/REPO/library-api:latest
+      url: ghcr.io/anandhan-naveen/storyrail/library-api:latest
       # Private GHCR package: create a registry credential in Render and uncomment.
       # creds:
       #   fromRegistryCreds:

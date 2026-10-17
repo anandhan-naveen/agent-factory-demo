@@ -1,6 +1,6 @@
 # Manual test charter: Library Catalog (FE issue 01)
 
-Scope: `issues/01-frontend-library-catalog.md`, FE-AC1 to FE-AC11, run against the **deployed QA environment** (`QA_URL` = https://anandhan-naveen.github.io/agent-factory-demo/), after the pipeline's deploy and smoke test have passed. Never a local build. (The first run on 2026-10-14 predates this rule and used a local demo build.)
+Scope: `issues/01-frontend-library-catalog.md`, FE-AC1 to FE-AC11, run against the **deployed QA environment** (`QA_URL` = https://anandhan-naveen.github.io/storyrail/), after the pipeline's deploy and smoke test have passed. Never a local build. (The first run on 2026-10-14 predates this rule and used a local demo build.)
 The UI automation in `tests/ui` (tagged `@FE-ACx`) checks the functional logic. These sessions cover what automation judges poorly: how the app looks and reads, keyboard and screen-reader experience, how it feels on a slow network, and exploratory edge cases.
 
 Heuristics used: **SFDIPOT** (Structure, Function, Data, Interfaces, Platform, Operations, Time) for coverage. **CRUSSPIC STMPL** quality criteria, mainly Capability, Usability, Accessibility (under Usability), Performance-as-perceived and Compatibility. **Consistency oracles**: the issue text, the app's own copy, WCAG 2.2 AA and comparable catalog UIs.

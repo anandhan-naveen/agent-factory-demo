@@ -10,7 +10,10 @@ RUN mvn -B -q -DskipTests package
 
 # ---- Runtime stage ----
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S app && adduser -S -G app app
+# Apply Alpine security fixes released after the base image was built (e.g. libexpat CVE-2026-77214),
+# so the Trivy gate doesn't depend on when the upstream image was last rebuilt.
+RUN apk upgrade --no-cache \
+ && addgroup -S app && adduser -S -G app app
 WORKDIR /app
 COPY --from=build /src/target/library-backend.jar /app/app.jar
 USER app

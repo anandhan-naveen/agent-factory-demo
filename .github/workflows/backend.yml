@@ -217,6 +217,12 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy-library-api
 
+      # Surface each finding as an annotation so the cause is readable without downloading logs.
+      - name: List Trivy findings
+        if: ${{ failure() && hashFiles('trivy-results.sarif') != '' }}
+        run: |
+          jq -r '.runs[].results[] | "::error title=Trivy \(.ruleId)::\(.message.text | split("\n") | map(select(test("^(Package|Installed Version|Fixed Version|Severity):"))) | join(" | "))"' trivy-results.sarif | head -n 40
+
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io

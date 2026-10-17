@@ -21,7 +21,9 @@ availability of books).
 | 8 | Sign-off | **You** accept the story for UAT / production |
 
 Defects found in QA go through a shorter **defect loop** (bug ticket → fix in the affected lane only → regression
-test → diff review + scan → CI/CD → smoke → targeted re-test). Full definitions: [factory/PIPELINE.md](factory/PIPELINE.md).
+test → diff review + scan → CI/CD → smoke → targeted re-test). Full definitions: [docs/storyrail/PIPELINE.md](docs/storyrail/PIPELINE.md).
+
+**Run it:** create an issue, then in Claude Code type `/storyrail <issue number>`. Setup: [docs/storyrail/SETUP.md](docs/storyrail/SETUP.md).
 
 | Part | Stack | Docs |
 |---|---|---|
@@ -34,9 +36,8 @@ test → diff review + scan → CI/CD → smoke → targeted re-test). Full defi
 
 - **Issues (user stories + acceptance criteria):** [01 frontend](issues/01-frontend-library-catalog.md) ·
   [02 backend](issues/02-backend-books-api.md)
-- **Agent briefs:** [factory/agents/](factory/agents/) (e.g. [fe-dev](factory/agents/fe-dev.md),
-  [be-dev](factory/agents/be-dev.md), [ui-tests](factory/agents/ui-tests.md), [api-tests](factory/agents/api-tests.md),
-  [manual-tests](factory/agents/manual-tests.md), [cicd](factory/agents/cicd.md))
+- **Agents:** [.claude/agents/](.claude/agents/) · orchestrator [.claude/skills/storyrail/SKILL.md](.claude/skills/storyrail/SKILL.md) · conventions [CLAUDE.md](CLAUDE.md)
+- **First run (hand-orchestrated) archive:** [docs/history/run-1/](docs/history/run-1/)
 - **Test traceability (AC → tests):** [UI](tests/ui/README.md#ac--test-traceability) ·
   [API](tests/api/README.md#traceability) · [manual](tests/manual/test-cases.md)
 - **Deployment:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)

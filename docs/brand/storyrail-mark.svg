@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="StoryRail">
+  <defs>
+    <linearGradient id="sr-g" x1="8" y1="56" x2="58" y2="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6a3cf0"/>
+      <stop offset="0.55" stop-color="#2f6ff0"/>
+      <stop offset="1" stop-color="#13d6e8"/>
+    </linearGradient>
+    <mask id="sr-rails" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <path d="M43 13H26c-7 0-11.5 4.6-11.5 10.5S19 34 26 34h12c7 0 11.5 4.4 11.5 10S45 54 38 54H11" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M43 13H26c-7 0-11.5 4.6-11.5 10.5S19 34 26 34h12c7 0 11.5 4.4 11.5 10S45 54 38 54H11" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <path d="M43 13H26c-7 0-11.5 4.6-11.5 10.5S19 34 26 34h12c7 0 11.5 4.4 11.5 10S45 54 38 54H11" fill="none" stroke="url(#sr-g)" stroke-opacity=".35" stroke-width="17" stroke-dasharray="2.6 4.4" stroke-linejoin="round"/>
+  <rect width="64" height="64" fill="url(#sr-g)" mask="url(#sr-rails)"/>
+  <path d="M41 4.5 57.5 13 41 21.5Z" fill="url(#sr-g)"/>
+</svg>

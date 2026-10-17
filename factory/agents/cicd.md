@@ -20,7 +20,7 @@ Write only `.github/**`, `render.yaml`, `docs/DEPLOYMENT.md`, `README.md` (root)
 4. `.github/dependabot.yml`: npm (frontend, tests/ui, tests/api), maven (backend), github-actions, docker (backend), weekly, with grouped minor/patch updates.
 5. `render.yaml`: Render blueprint for the backend (docker runtime, free plan, healthCheckPath, `APP_CORS_ALLOWED_ORIGINS` env var).
 6. `docs/DEPLOYMENT.md`: one-time setup (enable Pages with source "GitHub Actions", GHCR visibility, Render hook secret + `BACKEND_URL` variable, optional `SONAR_TOKEN`, setting the `API_BASE_URL` variable to point Pages at the live backend, and CORS).
-7. Root `README.md`: what the repo is (an agent-factory demo), a pipeline diagram (mermaid), how to run each part locally, and links to the issues, the factory agent briefs and the test traceability tables.
+7. Root `README.md`: what the repo is (a StoryRail demo), a pipeline diagram (mermaid), how to run each part locally, and links to the issues, the factory agent briefs and the test traceability tables.
 
 ## Rules
 - Least privilege: top-level `permissions: contents: read`, widened per job only where needed (`pages: write`, `id-token: write`, `packages: write`, `security-events: write`).

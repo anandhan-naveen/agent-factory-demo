@@ -1,14 +1,32 @@
-# Agent factory demo: Library Catalog
+<p align="center"><img src="docs/brand/storyrail-wordmark.svg" alt="StoryRail: from user story to signed-off release" width="420"></p>
 
-A small full-stack app built end to end by an **agent factory**: one orchestrator and a set of specialised Claude
-agents (frontend dev, backend dev, UI tests, API tests, manual QA, CI/CD), each working from a written brief and
-reporting to a live dashboard. The product is a library catalog: browse, search, filter, add, delete and toggle the
-availability of books.
+# StoryRail demo: Library Catalog
+
+**StoryRail** puts a user story on rails: a squad of specialised AI agents takes it from the product owner's
+GitHub issue to a signed-off release, with a human gate at both ends and a quality gate at every stage in between.
+This repo is the first story it carried: a small library catalog (browse, search, filter, add, delete and toggle the
+availability of books).
+
+## The rail
+
+| # | Stage | Who |
+|---|---|---|
+| 1 | Requirements | **Requirement writer** (you, the product owner) → **Requirement fetch** agent |
+| 2 | Build | **Frontend dev** ∥ **Backend dev**, each with unit tests |
+| 3 | Isolated tests | **Isolated UI automation** (after FE) ∥ **API automation** (after BE) |
+| 4 | Review + local scan | **Strict reviewer** (read-only) ∥ **Local quality scan** (Sonar rules, SAST, secrets, dependencies) |
+| 5 | Fix | **Review fixer** fixes both reports in one pass; re-check, max 2 rounds |
+| 6 | CI/CD → QA | GitHub Actions re-runs every check and deploys to QA |
+| 7 | QA environment | **Smoke test** → **Manual QA** on the deployed QA URL |
+| 8 | Sign-off | **You** accept the story for UAT / production |
+
+Defects found in QA go through a shorter **defect loop** (bug ticket → fix in the affected lane only → regression
+test → diff review + scan → CI/CD → smoke → targeted re-test). Full definitions: [factory/PIPELINE.md](factory/PIPELINE.md).
 
 | Part | Stack | Docs |
 |---|---|---|
 | `frontend/` | React 18, TypeScript, Vite, Vitest | [frontend/README.md](frontend/README.md) |
-| `backend/` | Spring Boot 3.3, Java 21, H2, JaCoCo, SpotBugs | [backend/README.md](backend/README.md) |
+| `backend/` | Spring Boot 3.5, Java 21, H2, JaCoCo, SpotBugs, PMD | [backend/README.md](backend/README.md) |
 | `docs/api/openapi.yaml` | Books API contract (single source of truth) | |
 | `tests/ui/` | Playwright UI tests (mocked API or real backend) | [tests/ui/README.md](tests/ui/README.md) |
 | `tests/api/` | Playwright API contract tests | [tests/api/README.md](tests/api/README.md) |
@@ -16,7 +34,7 @@ availability of books.
 
 - **Issues (user stories + acceptance criteria):** [01 frontend](issues/01-frontend-library-catalog.md) ·
   [02 backend](issues/02-backend-books-api.md)
-- **Factory agent briefs:** [factory/agents/](factory/agents/) (e.g. [fe-dev](factory/agents/fe-dev.md),
+- **Agent briefs:** [factory/agents/](factory/agents/) (e.g. [fe-dev](factory/agents/fe-dev.md),
   [be-dev](factory/agents/be-dev.md), [ui-tests](factory/agents/ui-tests.md), [api-tests](factory/agents/api-tests.md),
   [manual-tests](factory/agents/manual-tests.md), [cicd](factory/agents/cicd.md))
 - **Test traceability (AC → tests):** [UI](tests/ui/README.md#ac--test-traceability) ·

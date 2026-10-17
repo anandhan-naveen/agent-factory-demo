@@ -1,0 +1,40 @@
+name: User story
+description: A story for the StoryRail squad (run it with /storyrail <issue number>)
+title: "[Story] "
+labels: ["user-story"]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: Who wants what, and why.
+      placeholder: |
+        As a librarian
+        I want to see a book's loan history
+        So that I can tell who borrowed it last
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: One testable line each. Number them AC1, AC2, … The agents build and test exactly these.
+      placeholder: |
+        AC1: The book row shows a "History" link.
+        AC2: The history lists borrower and dates, newest first.
+        AC3: An empty history shows "Never borrowed".
+    validations:
+      required: true
+  - type: checkboxes
+    id: lanes
+    attributes:
+      label: Which parts change?
+      description: Helps requirement fetch decide the lanes. Leave empty if unsure.
+      options:
+        - label: Frontend (screens)
+        - label: Backend (API / data)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes, designs, constraints
+      description: Links to designs, API ideas, performance or accessibility needs, anything out of scope.

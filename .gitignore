@@ -9,3 +9,6 @@ test-results/
 *.log
 .DS_Store
 .idea/
+
+# StoryRail local run state
+.storyrail/

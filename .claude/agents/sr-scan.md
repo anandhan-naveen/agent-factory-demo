@@ -11,9 +11,9 @@ You **report**; the review fixer changes code. Write only `runs/issue-<N>/scan-r
 ## Checks (run what is installed; say clearly what you could not run)
 | Area | Command |
 |---|---|
-| Lint + Sonar-class JS/TS rules | `npm run lint` in `frontend`, `tests/ui`, `tests/api` (ESLint incl. `eslint-plugin-sonarjs`, zero warnings) |
+| Lint + Sonar-class JS/TS rules | `(cd <dir> && npm run lint)` for `frontend`, `tests/ui`, `tests/api` (ESLint incl. `eslint-plugin-sonarjs`, zero warnings) |
 | Types | `npm run typecheck` in the same three |
-| Java static analysis | `cd backend && mvn -B -q verify` (SpotBugs + FindSecBugs, PMD, JaCoCo; Checkstyle warnings) |
+| Java static analysis | `(cd backend && mvn -B -q verify)` (SpotBugs + FindSecBugs, PMD, JaCoCo; Checkstyle warnings) |
 | Dependencies | `npm audit --audit-level=high` in the three npm projects; for Maven, `osv-scanner --lockfile=backend/pom.xml` if installed |
 | SAST | `semgrep --config .semgrep --error` (repo rules) and, if online, `semgrep --config p/default` |
 | Secrets | `gitleaks git . --no-banner` if installed, otherwise a careful grep of the diff for keys/tokens |
@@ -23,7 +23,7 @@ Also read the diff for Sonar-style smells the tools miss: cognitive complexity, 
 
 ## Report file `runs/issue-<N>/scan-round<k>.md`
 A table of each check → tool/version → result, then findings: id `S<k>-<nn>`, severity (blocker/major/minor), file:line, rule, fix.
-Report `set gate done 100 "<n> findings · <tools run>/<tools total> tools"`.
+Report `security <high/critical vulns> <lint warnings>`, then `set gate done 100 "<n> findings · <tools run>/<tools total> tools"`.
 
 ## Final reply (≤ 120 words)
 The results table in short and the findings count by severity.

@@ -7,8 +7,10 @@
 //   node scripts/storyrail-status.mjs set <station> <status> [progress] [note...]
 //   node scripts/storyrail-status.mjs log <station> <ok|warn|bad|info> <message...>
 //   node scripts/storyrail-status.mjs run <key> <value...>             e.g. run phase "Build"
-//   node scripts/storyrail-status.mjs metric <unit|api|ui> <passed> <total>
+//   node scripts/storyrail-status.mjs loop <bug issues>                 defect loop inside a story run: resets build→QA stations, keeps the run
+//   node scripts/storyrail-status.mjs metric <unit-fe|unit-be|api|ui> <passed> <total>
 //   node scripts/storyrail-status.mjs findings <blocker> <major> <minor> <fixed>
+//   node scripts/storyrail-status.mjs security <high-critical vulns> <lint warnings>
 //   node scripts/storyrail-status.mjs end
 //   node scripts/storyrail-status.mjs show
 //
@@ -105,6 +107,21 @@ switch (cmd) {
     });
     break;
   }
+  case 'loop': {
+    const [bugs] = args;
+    if (!bugs) fail('loop needs the bug issue numbers, e.g. loop "50,51"');
+    withLock(() => {
+      const s = load();
+      for (const st of STATIONS.slice(STATIONS.indexOf('fe-dev'))) s.agents[st] = { status: 'pending', progress: 0, note: '' };
+      s.agents['req-fetch'] = { status: 'skipped', progress: 0, note: 'bug ticket is the requirement' };
+      s.run.bugs = bugs.split(',').map((n) => n.trim()).filter(Boolean);
+      s.run.phase = 'Defect loop';
+      delete s.run.endedAt;
+      addFeed(s, 'orchestrator', 'info', `Defect loop started for bug(s) ${bugs}`);
+      save(s);
+    });
+    break;
+  }
   case 'set': {
     const [station, status, progress, ...note] = args;
     if (!STATIONS.includes(station)) fail(`unknown station "${station}". Use one of: ${STATIONS.join(' ')}`);
@@ -145,11 +162,28 @@ switch (cmd) {
   }
   case 'metric': {
     const [name, passed, total] = args;
-    if (!['unit', 'api', 'ui'].includes(name)) fail('metric name must be unit, api or ui');
+    if (!['unit-fe', 'unit-be', 'api', 'ui'].includes(name)) fail('metric name must be unit-fe, unit-be, api or ui');
+    if (Number.isNaN(Number(passed)) || Number.isNaN(Number(total))) fail('metric needs <passed> <total> numbers');
     withLock(() => {
       const s = load();
       s.run.metrics ??= {};
       s.run.metrics[name] = { passed: Number(passed), total: Number(total) };
+      // The dashboard shows one unit-test tile: frontend + backend together.
+      const parts = ['unit-fe', 'unit-be'].map((k) => s.run.metrics[k]).filter(Boolean);
+      if (parts.length) {
+        s.run.metrics.unit = parts.reduce((a, m) => ({ passed: a.passed + m.passed, total: a.total + m.total }), { passed: 0, total: 0 });
+      }
+      save(s);
+    });
+    break;
+  }
+  case 'security': {
+    const [vulns, lint] = args.map(Number);
+    if ([vulns, lint].some((n) => Number.isNaN(n))) fail('security needs 2 numbers: <high-critical vulns> <lint warnings>');
+    withLock(() => {
+      const s = load();
+      s.run.metrics ??= {};
+      s.run.metrics.security = { vulns, lint };
       save(s);
     });
     break;
@@ -177,5 +211,5 @@ switch (cmd) {
     console.log(JSON.stringify(load(), null, 2));
     break;
   default:
-    fail('commands: start, set, log, run, metric, findings, end, show');
+    fail('commands: start, loop, set, log, run, metric, findings, security, end, show');
 }

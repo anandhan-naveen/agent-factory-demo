@@ -24,17 +24,17 @@ The app it currently builds is a **Library Catalog** (books: browse, search, fil
 
 ```bash
 # frontend
-cd frontend && npm ci && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm audit --audit-level=high
+(cd frontend && npm ci && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm audit --audit-level=high)
 # backend (needs Java 21 + Maven 3.9)
-cd backend && mvn -B verify          # unit tests, JaCoCo ≥ 80 %, SpotBugs, PMD, Checkstyle (warnings)
-cd backend && mvn spring-boot:run    # http://localhost:8080, H2 seeded
+(cd backend && mvn -B verify)          # unit tests, JaCoCo ≥ 80 %, SpotBugs, PMD, Checkstyle (warnings)
+(cd backend && mvn spring-boot:run)    # http://localhost:8080, H2 seeded
 # UI automation (builds the app itself; needs frontend deps installed)
-cd tests/ui && npm ci && npm run lint && npm run typecheck && npx playwright test
+(cd tests/ui && npm ci && npm run lint && npm run typecheck && npx playwright test)
 # API automation (backend must be running on :8080)
-cd tests/api && npm ci && npm run lint && npm run typecheck && API_BASE_URL=http://localhost:8080 npx playwright test
+(cd tests/api && npm ci && npm run lint && npm run typecheck && API_BASE_URL=http://localhost:8080 npx playwright test)
 ```
 
-First time on a machine: `cd tests/ui && npx playwright install chromium`.
+First time on a machine: `(cd tests/ui && npx playwright install chromium)`.
 
 ## Conventions every agent follows
 
@@ -57,6 +57,8 @@ node scripts/storyrail-status.mjs set <station> running 30 "short note (≤ 60 c
 node scripts/storyrail-status.mjs log <station> ok "one-line result"
 node scripts/storyrail-status.mjs set <station> done 100 "headline result, e.g. 24 tests · 96% cov"
 ```
+
+**Run every command from the repo root.** The Bash working directory persists between calls, so use subshells for other folders, e.g. `(cd frontend && npm run lint)`, never a bare `cd`.
 
 Use your own station id only (given in your agent file). Report at 3–5 milestones, not on every step.
 Statuses: `pending running done failed skipped waiting`. Log levels: `ok warn bad info`.

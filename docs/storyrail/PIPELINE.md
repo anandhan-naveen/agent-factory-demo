@@ -10,7 +10,7 @@ The pipeline starts by fetching them. Nothing reaches the QA environment until t
 | 2 | Build | **Frontend dev** (`sr-fe-dev`) ∥ **Backend dev** (`sr-be-dev`), each with unit tests; only the lanes the story needs | local | Unit tests + coverage green |
 | 3 | Isolated tests | **Isolated UI automation** (`sr-ui-tests`, after FE dev) ∥ **API automation** (`sr-api-tests`, after BE dev) | localhost: built app with mocked API / local jar | All AC-tagged tests green |
 | 4 | Review + local scan | **Strict reviewer** (`sr-reviewer`, read-only) ∥ **Local quality scan** (`sr-scan`) (Sonar rules via SonarQube for IDE / sonar-scanner in connected mode, SAST, secrets, dependency audit) | local workspace | Both reports collected |
-| 5 | Fix | **Review fixer** (`sr-fixer`, fresh agent) fixes the combined findings from both reports in one pass; reviewer and scan re-run; max 2 rounds | local workspace | Reviewer APPROVE **and** scan clean (0 high/critical, 0 lint, 0 secrets) |
+| 5 | Fix | **Review fixer** (`sr-fixer`, fresh agent) fixes the combined findings from both reports in one pass; reviewer and scan re-run; max 2 rounds | local workspace | **Quality gate:** reviewer APPROVE (0 blocker/major) **and** scan with 0 blocker/major, 0 lint warnings, 0 secrets, 0 high/critical vulnerabilities. Minors are fixed but never block. |
 | 6 | CI/CD → QA | PR: the pipeline re-runs all checks. **You approve the merge**, which deploys to QA | GitHub Actions | PR checks green + your OK |
 | 7 | QA environment | **Smoke test** (automated go/no-go, minutes) → **Manual QA** (`sr-manual-qa`, exploratory, against the QA URL) | QA URL | Smoke pass; no open blocker/major defects |
 | 8 | Sign-off | **Product owner** accepts the story for UAT / production | QA URL | Human approval |

@@ -10,11 +10,23 @@ You start each run yourself with `/storyrail <issue number>`.
 ```bash
 # Homebrew (skip if you have it): https://brew.sh
 brew install git gh node@22 maven
-brew install --cask temurin@21          # Java 21
+brew install --cask temurin@21              # Java 21 (asks for your Mac password: it runs an installer)
 brew install semgrep gitleaks osv-scanner   # optional: used by the local quality scan if present
+
+# node@22 and Java 21 are not on your PATH by default; add them once:
+echo 'export PATH="$(brew --prefix node@22)/bin:$PATH"' >> ~/.zprofile
+echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zprofile
+source ~/.zprofile
 ```
 
-Check: `node -v` (22.x), `java -version` (21), `mvn -v` (3.9+), `gh --version`.
+Check: `node -v` shows 22.x, `java -version` shows 21, and `mvn -v` shows Maven 3.9+ **with Java version 21**, plus `gh --version`.
+
+### Git identity (once per Mac)
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
 
 ### Claude Code
 
@@ -51,7 +63,7 @@ Log in with your Claude account when the browser opens, and trust the folder whe
 
 ## 2. Each story
 
-1. **Write the story** as a GitHub issue (use the *User story* template: story, acceptance criteria, labels `frontend` / `backend`).
+1. **Write the story** as a GitHub issue with the *User story* template: the story, numbered acceptance criteria, and tick **Frontend** and/or **Backend**.
 2. In the `storyrail` folder, start Claude Code (`claude`) and type:
 
    ```

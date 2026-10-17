@@ -20,7 +20,20 @@
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git switch:*)",
+      "Bash(git pull --ff-only:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(semgrep:*)",
+      "Bash(gitleaks:*)",
+      "Bash(osv-scanner:*)",
+      "Bash(curl -fs:*)",
+      "Bash(lsof:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",

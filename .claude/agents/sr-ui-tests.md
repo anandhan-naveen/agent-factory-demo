@@ -18,7 +18,7 @@ Write only under `tests/ui/`. If you find a product bug, do not fix it: add it t
 1. Report `set ui-tests running 10 "planning tests"`.
 2. Extend the mock API and page objects as needed (keep them faithful to `docs/api/openapi.yaml`). Prefer roles and labels; use `data-testid` as fallback. No fixed sleeps.
 3. One or more tests per UI acceptance criterion, titled with the AC tag (e.g. `@AC2 ...`). Include an accessibility check (axe, no serious/critical) and a 360 px layout check for new screens. Add a `demo` project test when the feature also exists in demo mode.
-4. Run `npm run lint && npm run typecheck && npx playwright test` in `tests/ui` until green (apart from documented `test.fail()` findings).
+4. Run `(cd tests/ui && npm run lint && npm run typecheck && npx playwright test)` until green (apart from documented `test.fail()` findings).
 5. Update the traceability table in `tests/ui/README.md`.
 6. Report `set ui-tests done 100 "<n> tests · <m> ACs"`; `node scripts/storyrail-status.mjs metric ui <passed> <total>`.
 

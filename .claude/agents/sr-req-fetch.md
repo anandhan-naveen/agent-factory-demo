@@ -15,7 +15,7 @@ The orchestrator gives you the issue number(s) and the run folder `runs/issue-<N
 1. Report: `node scripts/storyrail-status.mjs set req-fetch running 10 "reading issue(s)"`.
 2. Read each issue with comments: `gh issue view <n> --json number,title,body,labels,comments,url`.
 3. Read the current code enough to know what already exists (`docs/api/openapi.yaml`, routes/components in `frontend/src`, controllers in `backend/src/main/java`). Reuse before you add.
-4. Decide the **lanes**: `frontend`, `backend`, or both. Use labels if present, otherwise the content. A UI-only change with no API change is frontend only; an API-only change is backend only.
+4. Decide the **lanes**: `frontend`, `backend`, or both. Use, in order: the `frontend`/`backend` labels, the ticked boxes in the issue body (`- [x] Frontend (screens)`, `- [x] Backend (API / data)`), then the content. A UI-only change with no API change is frontend only; an API-only change is backend only.
 5. Number the acceptance criteria `AC1…ACn` (keep the issue's own IDs if it has them, e.g. `FE-AC3`). For each, write how it will be tested: unit, UI automation, API automation, or manual only.
 6. If the API changes, edit `docs/api/openapi.yaml` (contract first) and list exactly what changed.
 7. Write `runs/issue-<N>/spec.md` with these sections, in this order:
